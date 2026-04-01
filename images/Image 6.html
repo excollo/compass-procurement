@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Architect Intelligence | Vendor Communication</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-variant": "#e0e3e5",
+              "surface-tint": "#0053db",
+              "surface-dim": "#d8dadc",
+              "primary-fixed-dim": "#b4c5ff",
+              "surface-container-high": "#e6e8ea",
+              "secondary": "#515f74",
+              "on-primary-fixed": "#00174b",
+              "inverse-primary": "#b4c5ff",
+              "surface-container-low": "#f2f4f6",
+              "surface-container-lowest": "#ffffff",
+              "on-secondary-fixed": "#0d1c2e",
+              "background": "#f7f9fb",
+              "on-primary-container": "#eeefff",
+              "secondary-container": "#d5e3fc",
+              "on-secondary-container": "#57657a",
+              "surface-bright": "#f7f9fb",
+              "surface-container-highest": "#e0e3e5",
+              "error-container": "#ffdad6",
+              "error": "#ba1a1a",
+              "on-surface": "#191c1e",
+              "on-tertiary-fixed-variant": "#7d2d00",
+              "tertiary-fixed-dim": "#ffb596",
+              "surface-container": "#eceef0",
+              "outline": "#737686",
+              "on-secondary-fixed-variant": "#3a485b",
+              "inverse-on-surface": "#eff1f3",
+              "tertiary-fixed": "#ffdbcd",
+              "primary": "#004ac6",
+              "surface": "#f7f9fb",
+              "on-error-container": "#93000a",
+              "on-secondary": "#ffffff",
+              "outline-variant": "#c3c6d7",
+              "tertiary": "#943700",
+              "on-primary-fixed-variant": "#003ea8",
+              "tertiary-container": "#bc4800",
+              "secondary-fixed-dim": "#b9c7df",
+              "on-tertiary-container": "#ffede6",
+              "primary-fixed": "#dbe1ff",
+              "on-background": "#191c1e",
+              "secondary-fixed": "#d5e3fc",
+              "on-tertiary-fixed": "#360f00",
+              "primary-container": "#2563eb",
+              "on-surface-variant": "#434655",
+              "on-error": "#ffffff",
+              "inverse-surface": "#2d3133",
+              "on-primary": "#ffffff",
+              "on-tertiary": "#ffffff"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-headline { font-family: 'Manrope', sans-serif; }
+        .glass-insight {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(24px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface h-full overflow-hidden flex">
+<!-- ZONE 1: SideNavBar -->
+<aside class="w-64 flex flex-col p-4 gap-y-2 h-full bg-[#f2f4f6] dark:bg-slate-900 flex-shrink-0">
+<div class="flex items-center gap-3 px-2 mb-8 mt-2">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-sm">architecture</span>
+</div>
+<div>
+<h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-slate-50">ProcureOps</h1>
+<p class="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Enterprise Tier</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-white/50 transition-all rounded-lg font-semibold text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-white/50 transition-all rounded-lg font-semibold text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+                Purchase Orders
+            </a>
+<a class="flex items-center gap-3 px-4 py-2.5 bg-white shadow-sm text-[#2563eb] transition-all rounded-lg font-semibold text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="forum">forum</span>
+                Chats
+            </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-white/50 transition-all rounded-lg font-semibold text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
+                Uploads
+            </a>
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-white/50 transition-all rounded-lg font-semibold text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                Settings
+            </a>
+</nav>
+<button class="mt-4 mb-8 mx-2 bg-gradient-to-br from-primary to-primary-container text-white py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-sm">add</span>
+            New Request
+        </button>
+<div class="mt-auto border-t border-outline-variant/10 pt-4">
+<a class="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-white/50 transition-all rounded-lg font-semibold text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+                Help Center
+            </a>
+</div>
+</aside>
+<!-- MAIN CONTENT CANVAS -->
+<main class="flex-1 flex overflow-hidden">
+<!-- ZONE 2: PO List Sidebar -->
+<section class="w-80 flex flex-col bg-surface-container-low border-r border-outline-variant/20">
+<div class="p-6">
+<h2 class="text-xl font-bold text-on-surface mb-4">Vendor Chats</h2>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border-none rounded-lg text-sm px-10 py-2.5 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50" placeholder="Search POs..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant/50 text-sm">search</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto px-4 space-y-2">
+<!-- Active Item -->
+<div class="p-4 bg-surface-container-lowest rounded-xl border-l-4 border-primary shadow-sm group cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest">PO-2024-884</span>
+<span class="px-2 py-0.5 rounded-full bg-error-container text-on-error-container text-[10px] font-bold">HIGH RISK</span>
+</div>
+<h3 class="font-bold text-sm text-on-surface truncate">Apex Logistics</h3>
+<p class="text-xs text-on-surface-variant mt-1 line-clamp-1">Human intervention active...</p>
+<div class="flex items-center gap-2 mt-3">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<span class="text-[10px] font-semibold text-primary uppercase">Live Thread</span>
+</div>
+</div>
+<!-- Inactive Items -->
+<div class="p-4 hover:bg-surface-container-highest/30 rounded-xl cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">PO-2024-912</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase">On Track</span>
+</div>
+<h3 class="font-bold text-sm text-on-surface truncate">Global Circuitry Inc</h3>
+<p class="text-xs text-on-surface-variant mt-1 line-clamp-1">Bot: Shipping confirmation received.</p>
+</div>
+<div class="p-4 hover:bg-surface-container-highest/30 rounded-xl cursor-pointer transition-all">
+<div class="flex justify-between items-start mb-1">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">PO-2024-772</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant text-[10px] font-bold uppercase">Awaiting Info</span>
+</div>
+<h3 class="font-bold text-sm text-on-surface truncate">Prime Materials Corp</h3>
+<p class="text-xs text-on-surface-variant mt-1 line-clamp-1">Vendor: Will update by EOD.</p>
+</div>
+</div>
+</section>
+<!-- ZONE 3: Main Chat (WhatsApp Style) -->
+<section class="flex-1 flex flex-col bg-surface-container-lowest">
+<!-- Chat Header -->
+<header class="h-16 flex items-center justify-between px-8 border-b border-outline-variant/10">
+<div class="flex items-center gap-4">
+<div class="relative">
+<img alt="Vendor Logo" class="w-10 h-10 rounded-lg object-cover" data-alt="professional company logo of a logistics firm with blue abstract geometric shapes" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMZOEa2DXAQEdCh7i4MNWp4sq2dCUUumGj9rEtBBwxM1peMqyHHb64nzjv-fvic-IRySsnaGVhtjBusJmXCz876AXhfvrirI_JmyrhaPYIyx_D-s3CRyCKU_njBLDScfrzUWPHhn5vUnLEoFIlbut8Tan6AhHcW3CW0BcFoNHdQ0S4Eq6MSWrHnyQl19iqazHGif23gQa4sNfrucjhup3lNqZFSXQJ821v9o_imoE9h8xp8vRrxoCIAledagdQMe5um0iiRAyWIhaZ"/>
+<div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+</div>
+<div>
+<h2 class="text-sm font-bold text-on-surface">Apex Logistics – Delivery Ops</h2>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Human Intervention Mode</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-all">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-all">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</header>
+<!-- Chat Content -->
+<div class="flex-1 overflow-y-auto p-8 space-y-8 bg-[#fafbfd]">
+<!-- Date Separator -->
+<div class="flex justify-center">
+<span class="px-4 py-1 bg-surface-container-low rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Today</span>
+</div>
+<!-- Bot Message -->
+<div class="flex items-start gap-4">
+<div class="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-sm text-on-surface-variant">smart_toy</span>
+</div>
+<div class="flex flex-col gap-1 max-w-[70%]">
+<span class="text-[10px] font-bold text-on-surface-variant ml-2 uppercase">Architect Bot</span>
+<div class="p-4 bg-white/60 border border-outline-variant/30 backdrop-blur-md rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed">
+                            Hello Apex Team, I am checking on the ETA for PO-2024-884. It was scheduled for delivery 2 hours ago. Could you please provide a status update?
+                        </div>
+<span class="text-[10px] text-on-surface-variant/60 ml-2">10:15 AM</span>
+</div>
+</div>
+<!-- Vendor Message -->
+<div class="flex items-start gap-4 flex-row-reverse">
+<div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+<img alt="Vendor Representative" data-alt="professional corporate headshot of a smiling middle-aged man with short hair in a business shirt" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAh5hcGtHHsvCexKT50Kt9n5wN1t1kOltz7jA3S5sW_96KUI8zPHYtxBXYI9Mc_NZv9CMWgNJc-0GYNOnZZZxUKeNBOY7ZbFg3AwOcDfBcZP7jZKvRnQRrKON3SkhqBIK7D4mRVZy-VaWqI0vHKhWmY10k6F9dFPFi3icvx6QYCE_kfaVsaAn5TEmELqId4rxgAxoR-pK3xClVfeibZ1rY64SfUjhK0azwULWkeGqZtpVLUnJQ3CvtpxMN0Zn2bWfbBZ95pYjVZ1SDT"/>
+</div>
+<div class="flex flex-col items-end gap-1 max-w-[70%]">
+<span class="text-[10px] font-bold text-on-surface-variant mr-2 uppercase">Marco (Vendor)</span>
+<div class="p-4 bg-primary text-white rounded-2xl rounded-tr-none shadow-md shadow-primary/10 text-sm leading-relaxed">
+                            Hi there. We had a breakdown on the interstate with the transport vehicle. Currently dispatching a backup truck, but delivery is delayed by at least 6 hours. Apologies for the late notice.
+                        </div>
+<span class="text-[10px] text-on-surface-variant/60 mr-2 text-right">10:18 AM</span>
+</div>
+</div>
+<!-- System Notification -->
+<div class="flex justify-center">
+<div class="px-6 py-2 bg-error-container/30 border border-error-container rounded-lg flex items-center gap-3">
+<span class="material-symbols-outlined text-error text-lg">warning</span>
+<span class="text-xs font-bold text-on-error-container">Bot detected high-risk delay. Requesting human operator...</span>
+</div>
+</div>
+<!-- Human Op Message -->
+<div class="flex items-start gap-4">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 text-white font-bold text-[10px]">
+                        SC
+                    </div>
+<div class="flex flex-col gap-1 max-w-[70%]">
+<span class="text-[10px] font-bold text-primary ml-2 uppercase">Sarah (Operator)</span>
+<div class="p-4 bg-primary-container text-on-primary-container rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed">
+                            Hi Marco, this is Sarah from the operations team. We have a production shift starting at 2 PM that depends on this material. Can you confirm if the backup truck is already on-site or if we need to look for a local courier alternative?
+                        </div>
+<span class="text-[10px] text-on-surface-variant/60 ml-2">10:22 AM</span>
+</div>
+</div>
+</div>
+<!-- Message Composer -->
+<footer class="p-6 bg-white border-t border-outline-variant/10">
+<div class="flex items-end gap-4 max-w-5xl mx-auto">
+<div class="flex-1 relative">
+<textarea class="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 pr-12 focus:ring-2 focus:ring-primary/20 resize-none text-sm" placeholder="Type a message to Marco..." rows="1"></textarea>
+<div class="absolute right-4 bottom-3.5 flex gap-2">
+<button class="text-on-surface-variant/60 hover:text-primary transition-all">
+<span class="material-symbols-outlined text-xl">attach_file</span>
+</button>
+</div>
+</div>
+<button class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+<div class="mt-4 flex items-center justify-center gap-6">
+<button class="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest hover:text-primary transition-all">
+<span class="material-symbols-outlined text-sm">alternate_email</span>
+                        Mention PO
+                    </button>
+<button class="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest hover:text-primary transition-all">
+<span class="material-symbols-outlined text-sm">insert_drive_file</span>
+                        Attach Invoice
+                    </button>
+<button class="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest hover:text-primary transition-all">
+<span class="material-symbols-outlined text-sm">schedule</span>
+                        Set Reminder
+                    </button>
+</div>
+</footer>
+</section>
+<!-- ZONE 4: Right Context Panel -->
+<section class="w-80 bg-surface-container-low flex flex-col border-l border-outline-variant/20 overflow-y-auto">
+<div class="p-6 border-b border-outline-variant/10">
+<h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">Case Overview</h3>
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm space-y-4">
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase">Purchase Order</p>
+<p class="text-sm font-bold text-on-surface">PO-2024-884</p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase">Vendor</p>
+<p class="text-sm font-bold text-on-surface underline underline-offset-4 decoration-primary/30">Apex Logistics LLC</p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase">Current Status</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="px-2 py-0.5 rounded bg-error-container text-on-error-container text-[10px] font-black uppercase">Manual Intervention</span>
+</div>
+</div>
+<div class="pt-2 border-t border-outline-variant/10">
+<p class="text-[10px] font-bold text-on-surface-variant uppercase">Risk Level</p>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-error h-full" style="width: 85%;"></div>
+</div>
+<p class="text-[10px] text-error font-bold mt-1">85% - Severe Supply Chain Impact</p>
+</div>
+</div>
+</div>
+<div class="p-6 flex flex-col gap-3">
+<h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Operator Controls</h3>
+<button class="w-full py-3.5 px-4 bg-surface-container-highest/50 text-on-surface font-bold text-xs rounded-xl flex items-center justify-between group hover:bg-surface-container-highest transition-all">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">pan_tool</span>
+                        Take Over Chat
+                    </span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-all">chevron_right</span>
+</button>
+<button class="w-full py-3.5 px-4 bg-primary text-white font-bold text-xs rounded-xl flex items-center justify-between shadow-lg shadow-primary/20 hover:bg-primary-container transition-all">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">smart_toy</span>
+                        Hand Back to Bot
+                    </span>
+</button>
+<button class="w-full py-3.5 px-4 bg-surface-container-highest/50 text-error font-bold text-xs rounded-xl flex items-center gap-2 hover:bg-error-container transition-all">
+<span class="material-symbols-outlined text-lg">pause_circle</span>
+                    Pause Bot Completely
+                </button>
+<div class="mt-6 pt-6 border-t border-outline-variant/10">
+<button class="w-full py-3.5 px-4 border border-outline-variant rounded-xl text-on-surface font-bold text-xs flex items-center gap-2 hover:bg-surface-container-lowest transition-all">
+<span class="material-symbols-outlined text-lg">note_add</span>
+                        Internal Note
+                    </button>
+<button class="w-full mt-3 py-3.5 px-4 bg-green-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-600/10 hover:bg-green-700 transition-all">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+                        Mark Resolved
+                    </button>
+</div>
+</div>
+<!-- Insights Glass Card -->
+<div class="mx-6 mb-6 mt-auto p-4 glass-insight border border-white/40 rounded-2xl shadow-xl">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="text-[10px] font-black text-on-surface uppercase tracking-widest">AI Prediction</span>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed font-medium">
+                    Apex has a 22% delay recurrence on this route. Recommend switching to <span class="font-bold text-on-surface">Swift Logistics</span> for Q4 shipments.
+                </p>
+<button class="mt-3 text-[10px] font-bold text-primary hover:underline uppercase">View Full Analysis</button>
+</div>
+</section>
+</main>
+</body></html>
