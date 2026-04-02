@@ -70,11 +70,6 @@ const Vendors = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-bold hover:bg-primary/20 transition-all active:scale-95">
-                            <span className="material-symbols-outlined text-sm">add</span>
-                            Onboard Vendor
-                        </button>
-                        <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-700"></div>
                         <div className="flex items-center gap-2">
                            <img alt="Profile" className="w-8 h-8 rounded-full border-2 border-primary/20 shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpRZ82Z9vlt8SyVdsbUz4q-XFlmZojEzyvWp90xVibsAElJPHW_meJckQWZJtoPzP5MJhSZLiW07y47QlgPdvId2zdjsImRevGIZD_iKx2C2yIoMsdsI26776buMmB2IZw_TcFkmbdrXj5d5ipKaIrZOei16-LsfiINHvvt43OGveovU-XUhhNDvQdJjJm6NRCjPfa6TU13zSUWI7Y-x_kXNhBC3H4m_Bn1Y5HZHFACgA_5nb0ORR6Upj4N-Mxe3xekbptlc3YMSes" />
                         </div>
@@ -89,37 +84,27 @@ const Vendors = () => {
                                     <h1 className="text-3xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase">Vendor Ecosystem</h1>
                                     <p className="text-slate-500 font-medium mt-1">Manage and monitor global supply chain partners.</p>
                                 </div>
-                                <div className="flex gap-3">
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:shadow-md transition-all active:scale-95">
-                                        <span className="material-symbols-outlined text-sm">filter_list</span>
-                                        Segment
-                                    </button>
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-xs font-bold hover:shadow-lg transition-all active:scale-95 shadow-md">
-                                        <span className="material-symbols-outlined text-sm">file_download</span>
-                                        Master Export
-                                    </button>
-                                </div>
                             </div>
 
                             {/* Stats */}
                             <div className="grid grid-cols-4 gap-6 mb-8">
                                 {[
-                                    { label: 'Total Partnerships', value: vendors.length, trend: '↑ 4.2%', icon: 'hub', color: 'bg-blue-500' },
-                                    { label: 'Active Status', value: vendors.filter(v => v.status === 'Active').length || vendors.length, trend: '98%', icon: 'check_circle', color: 'bg-emerald-500' },
-                                    { label: 'MSMED Registered', value: vendors.filter(v => v.msmed_statis === 'Yes').length || '-', trend: 'Compliance', icon: 'verified', color: 'bg-indigo-500' },
-                                    { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || '-', trend: 'Global', icon: 'public', color: 'bg-amber-500' },
+                                    { label: 'Total Partnerships', value: vendors.length, icon: 'hub', color: 'bg-blue-500' },
+                                    { label: 'Active Status', value: vendors.filter(v => v.status === 'Active').length || vendors.length, icon: 'check_circle', color: 'bg-emerald-500' },
+                                    { label: 'MSMED Registered', value: vendors.filter(v => v.msmed_statis === 'Yes').length || 0, icon: 'verified', color: 'bg-indigo-500' },
+                                    { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || 0, icon: 'public', color: 'bg-amber-500' },
                                 ].map((stat, i) => (
-                                    <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all cursor-default">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className={`p-2 rounded-xl ${stat.color} bg-opacity-10 text-${stat.color.split('-')[1]}-600 dark:text-${stat.color.split('-')[1]}-400`}>
-                                                <span className="material-symbols-outlined text-xl">{stat.icon}</span>
+                                    <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all cursor-default overflow-hidden relative group">
+                                        <div className={`absolute top-0 right-0 w-24 h-24 ${stat.color} opacity-[0.03] rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-110`}></div>
+                                        <div className="relative z-10">
+                                            <div className={`w-12 h-12 rounded-xl ${stat.color} bg-opacity-10 text-${stat.color.split('-')[1]}-600 dark:text-${stat.color.split('-')[1]}-400 flex items-center justify-center mb-4`}>
+                                                <span className="material-symbols-outlined text-2xl">{stat.icon}</span>
                                             </div>
-                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${stat.trend.includes('↑') ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
-                                                {stat.trend}
-                                            </span>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{stat.label}</p>
+                                            <h3 className="text-3xl font-black text-slate-900 dark:text-white mt-1 leading-none">
+                                                {loading ? '...' : stat.value}
+                                            </h3>
                                         </div>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{stat.label}</p>
-                                        <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1 leading-none">{stat.value}</h3>
                                     </div>
                                 ))}
                             </div>
@@ -159,18 +144,18 @@ const Vendors = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-8 py-6">
-                                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{vendor.contact_person || '---'}</p>
-                                                        <p className="text-[10px] font-bold text-slate-400">{vendor.contact_number || '---'}</p>
+                                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{vendor.contact_person || ''}</p>
+                                                        <p className="text-[10px] font-bold text-slate-400">{vendor.contact_number || ''}</p>
                                                     </td>
-                                                    <td className="px-8 py-6 text-sm font-bold text-slate-600 dark:text-slate-400">{vendor.city || 'N/A'}</td>
-                                                    <td className="px-8 py-6 text-right text-xs font-black text-slate-400 uppercase tracking-tighter">{vendor.postal_code || '---'}</td>
+                                                    <td className="px-8 py-6 text-sm font-bold text-slate-600 dark:text-slate-400">{vendor.city || ''}</td>
+                                                    <td className="px-8 py-6 text-right text-xs font-black text-slate-400 uppercase tracking-tighter">{vendor.postal_code || ''}</td>
                                                 </tr>
                                             ))
                                         )}
                                     </tbody>
                                 </table>
                                 <div className="p-8 bg-slate-50/50 dark:bg-slate-800/5 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    <span>Syncing {filteredVendors.length} Partner Profiles</span>
+                                    <span>Syncing Partner Profiles</span>
                                     <div className="flex gap-2">
                                         <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all active:scale-90"><span className="material-symbols-outlined text-sm">west</span></button>
                                         <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all active:scale-90"><span className="material-symbols-outlined text-sm">east</span></button>
@@ -224,7 +209,7 @@ const Vendors = () => {
                                                 </div>
                                                 <div>
                                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Hotline</p>
-                                                    <p className="text-sm font-black text-slate-900 dark:text-white mt-1">{selectedVendor.contact_number || '---'}</p>
+                                                    <p className="text-sm font-black text-slate-900 dark:text-white mt-1">{selectedVendor.contact_number || ''}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-5">
@@ -256,11 +241,11 @@ const Vendors = () => {
                                         <div className="grid grid-cols-2 gap-8">
                                             <div>
                                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">GSTID Reference</p>
-                                                <p className="text-xs font-black text-slate-800 dark:text-white mt-2 font-mono">{selectedVendor.gst_number || '---'}</p>
+                                                <p className="text-xs font-black text-slate-800 dark:text-white mt-2 font-mono">{selectedVendor.gst_number || ''}</p>
                                             </div>
                                             <div>
                                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">PAN Portfolio</p>
-                                                <p className="text-xs font-black text-slate-800 dark:text-white mt-2 font-mono">{selectedVendor.pan_number || '---'}</p>
+                                                <p className="text-xs font-black text-slate-800 dark:text-white mt-2 font-mono">{selectedVendor.pan_number || ''}</p>
                                             </div>
                                         </div>
                                     </div>
