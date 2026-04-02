@@ -1,8 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import { supabase } from '../lib/supabase';
 
 const Dashboard = () => {
   const [modalOpen, setModalOpen] = useState(false);
+  const [dbStatus, setDbStatus] = useState('Connecting to Supabase...');
+
+  useEffect(() => {
+    async function testDb() {
+      try {
+        const { data: vendors, error: e1 } = await supabase.from('vendor_master').select('*').limit(1);
+        const { data: orders, error: e2 } = await supabase.from('purchase_order_data').select('*').limit(1);
+        
+        if (e1 || e2) throw e1 || e2;
+        
+        setDbStatus(`Connected ✅ (Vendors: ${vendors.length}, Orders: ${orders.length})`);
+      } catch (err) {
+        console.error("Supabase Error:", err.message);
+        setDbStatus(`Connection Error ❌`);
+      }
+    }
+    testDb();
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -11,11 +30,16 @@ const Dashboard = () => {
         <header className="flex justify-between items-center h-16 px-8 w-full bg-white dark:bg-slate-900 sticky top-0 z-40 transition-all flex-shrink-0 border-b border-surface-container/50">
           <div className="flex items-center gap-8">
             <span className="text-lg font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline">Architect Intelligence</span>
-            {/* <div className="hidden lg:flex items-center gap-6">
-              <nav className="flex items-center gap-6 h-16">
-                <a className="text-[#2563eb] font-semibold border-b-2 border-[#2563eb] h-full flex items-center px-1" href="#">Overview</a>
-              </nav>
-            </div> */}
+            
+            {/* Visual Database Status Badge */}
+            <div className="ml-4 px-3 py-1 bg-surface-container text-xs font-bold rounded-full text-slate-600 shadow-inner flex items-center gap-2">
+               <span className="relative flex h-2 w-2">
+                 <span className={`${dbStatus.includes('Connected') ? 'bg-green-500' : 'bg-amber-500'} animate-ping absolute inline-flex h-full w-full rounded-full opacity-75`}></span>
+                 <span className={`relative inline-flex rounded-full h-2 w-2 ${dbStatus.includes('Connected') ? 'bg-green-500' : 'bg-amber-500'}`}></span>
+               </span>
+               {dbStatus}
+            </div>
+
           </div>
           <div className="flex items-center gap-4">
             <div className="relative group">

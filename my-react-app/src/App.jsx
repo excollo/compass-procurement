@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
 import Chats from './pages/Chats';
+import Vendors from './pages/Vendors';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/chats" element={<Chats />} />
+        <Route path="/vendors" element={<Vendors />} />
       </Routes>
     </BrowserRouter>
   );
