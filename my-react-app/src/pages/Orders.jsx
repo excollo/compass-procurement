@@ -1,308 +1,327 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import { supabase } from '../lib/supabase';
 
 const Orders = () => {
+  const location = useLocation();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showLineItems, setShowLineItems] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
+
+  // Filter states
+  const [filterVendor, setFilterVendor] = useState('All Vendors');
+  const [filterStatus, setFilterStatus] = useState('Any Status');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+
+  // Effect to handle incoming vendor filter from navigation state
+  useEffect(() => {
+    if (location.state?.vendorFilter) {
+      setFilterVendor(location.state.vendorFilter);
+      setCurrentPage(1);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data: openData, error: e1 } = await supabase.from('open_po_detail').select('*');
+      const { data: closedData, error: e2 } = await supabase.from('purchase_order_data').select('*');
+
+      if (e1 || e2) throw e1 || e2;
+
+      const poMap = new Map();
+
+      (closedData || []).forEach(item => {
+        const po_num = item.purchasing_document;
+        if (!poMap.has(po_num)) {
+          poMap.set(po_num, {
+            po_num,
+            vendor: item.vendor_name,
+            delivery_date: item.delivery_date,
+            status: item.status || 'Close',
+            po_date: item.document_date,
+            origin: 'purchase_order_data',
+            items: []
+          });
+        }
+        poMap.get(po_num).items.push({
+          item_num: item.item,
+          article: item.article,
+          description: item.short_text,
+          quantity: item.order_quantity,
+          received: item.quantity_received,
+          unit: item.uom
+        });
+      });
+
+      (openData || []).forEach(item => {
+        const po_num = item.po_num;
+        if (!poMap.has(po_num) || poMap.get(po_num).status === 'Close') {
+           poMap.set(po_num, {
+             po_num,
+             vendor: item.vendor_name,
+             delivery_date: item.delivery_date,
+             status: item.status || 'Open',
+             po_date: item.po_date,
+             origin: 'open_po_detail',
+             items: []
+           });
+        }
+        poMap.get(po_num).items.push({
+          item_num: item.po_item,
+          article: item.article_code,
+          description: item.article_description,
+          quantity: item.po_quantity,
+          received: item.delivered_quantity,
+          unit: item.unit
+        });
+      });
+
+      setOrders(Array.from(poMap.values()));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedOrder) {
+      setIsSidebarOpen(true);
+      setShowLineItems(false); // Reset dropdown when selecting new PO
+    } else {
+      setIsSidebarOpen(false);
+    }
+  }, [selectedOrder]);
+
+  const vendorsList = ['All Vendors', ...new Set(orders.map(o => o.vendor))];
+  const statusList = ['Any Status', 'Open', 'Close', 'Delayed'];
+
+  const filteredOrders = orders.filter(po => {
+    const matchesSearch = (po.po_num?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                        (po.vendor?.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesVendor = filterVendor === 'All Vendors' || po.vendor === filterVendor;
+    const matchesStatus = filterStatus === 'Any Status' || po.status === filterStatus;
+    
+    let matchesDate = true;
+    if (filterDateFrom && po.po_date) {
+      matchesDate = matchesDate && (new Date(po.po_date) >= new Date(filterDateFrom));
+    }
+    if (filterDateTo && po.po_date) {
+      matchesDate = matchesDate && (new Date(po.po_date) <= new Date(filterDateTo));
+    }
+
+    return matchesSearch && matchesVendor && matchesStatus && matchesDate;
+  });
+
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const paginatedOrders = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="flex justify-between items-center h-16 px-8 w-full bg-white dark:bg-slate-900 z-40 border-b border-outline-variant/10">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header className="flex justify-between items-center h-16 px-8 w-full bg-white dark:bg-slate-900 border-b border-outline-variant/10">
           <div className="flex items-center gap-8">
-            <h1 className="text-lg font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline">Architect Intelligence</h1>
+            <h1 className="text-lg font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline">Enterprise Procurement</h1>
             <div className="relative group">
               <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">
                 <span className="material-symbols-outlined text-sm">search</span>
               </span>
-              <input className="bg-surface-container-low border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search POs..." type="text" />
+              <input 
+                className="bg-surface-container-low border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-72 focus:ring-2 focus:ring-primary/20 transition-all font-medium" 
+                placeholder="Search PO or Vendor..." 
+                type="text" 
+                value={searchTerm}
+                onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
+              />
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <button className="p-2 text-slate-500 hover:bg-slate-200/50 rounded-full transition-colors">
-                <span className="material-symbols-outlined">notifications</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-2 ml-4">
-              <div className="text-right hidden sm:block">
-                <p className="text-xs font-bold text-slate-900">Alex Chen</p>
-                <p className="text-[10px] text-slate-500">Sr. Procurement</p>
-              </div>
-              <img alt="User profile avatar" className="w-8 h-8 rounded-full border-2 border-primary-fixed shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpRZ82Z9vlt8SyVdsbUz4q-XFlmZojEzyvWp90xVibsAElJPHW_meJckQWZJtoPzP5MJhSZLiW07y47QlgPdvId2zdjsImRevGIZD_iKx2C2yIoMsdsI26776buMmB2IZw_TcFkmbdrXj5d5ipKaIrZOei16-LsfiINHvvt43OGveovU-XUhhNDvQdJjJm6NRCjPfa6TU13zSUWI7Y-x_kXNhBC3H4m_Bn1Y5HZHFACgA_5nb0ORR6Upj4N-Mxe3xekbptlc3YMSes" />
-            </div>
+            <img alt="Profile" className="w-8 h-8 rounded-full border-2 border-primary-fixed shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpRZ82Z9vlt8SyVdsbUz4q-XFlmZojEzyvWp90xVibsAElJPHW_meJckQWZJtoPzP5MJhSZLiW07y47QlgPdvId2zdjsImRevGIZD_iKx2C2yIoMsdsI26776buMmB2IZw_TcFkmbdrXj5d5ipKaIrZOei16-LsfiINHvvt43OGveovU-XUhhNDvQdJjJm6NRCjPfa6TU13zSUWI7Y-x_kXNhBC3H4m_Bn1Y5HZHFACgA_5nb0ORR6Upj4N-Mxe3xekbptlc3YMSes" />
           </div>
         </header>
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden relative">
           <section className="flex-1 overflow-y-auto bg-surface p-8 no-scrollbar">
-            <div className="flex justify-between items-end mb-8">
-              <div>
-                <h2 className="text-3xl font-extrabold text-on-surface font-headline tracking-tight">Purchase Orders</h2>
-                <p className="text-on-surface-variant font-medium mt-1">Manage global procurement cycles and vendor logistics.</p>
-              </div>
-              <div className="flex gap-3">
-                <button className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest text-on-surface-variant border border-outline-variant/30 rounded-lg text-xs font-semibold hover:bg-white shadow-sm transition-all">
-                  <span className="material-symbols-outlined text-sm">filter_list</span>
-                  Advanced Filters
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest text-on-surface-variant border border-outline-variant/30 rounded-lg text-xs font-semibold hover:bg-white shadow-sm transition-all">
-                  <span className="material-symbols-outlined text-sm">download</span>
-                  Export CSV
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-7 gap-4 mb-6 bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/10">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Vendor</label>
-                <select className="w-full bg-surface-container-low border-none rounded text-xs py-1.5 focus:ring-0">
-                  <option>All Vendors</option>
-                  <option>Apex Logistics</option>
-                  <option>Zenith Corp</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Site</label>
-                <select className="w-full bg-surface-container-low border-none rounded text-xs py-1.5 focus:ring-0">
-                  <option>All Sites</option>
-                  <option>Berlin HUB</option>
-                  <option>Austin HQ</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Status</label>
-                <select className="w-full bg-surface-container-low border-none rounded text-xs py-1.5 focus:ring-0">
-                  <option>Any Status</option>
-                  <option>Open</option>
-                  <option>Closed</option>
-                  <option>Delayed</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Delivery</label>
-                <select className="w-full bg-surface-container-low border-none rounded text-xs py-1.5 focus:ring-0">
-                  <option>Next 30 Days</option>
-                  <option>Overdue</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Risk</label>
-                <select className="w-full bg-surface-container-low border-none rounded text-xs py-1.5 focus:ring-0">
-                  <option>High Risk Only</option>
-                  <option>All Risks</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Date Range</label>
-                <input className="w-full bg-surface-container-low border-none rounded text-xs py-1.5 focus:ring-0" type="date" />
-              </div>
-              <div className="flex items-end">
-                <button className="w-full bg-primary text-white py-1.5 rounded text-xs font-bold hover:opacity-90">Apply</button>
-              </div>
-            </div>
-
-            <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/10 overflow-hidden">
-              <table className="w-full border-collapse">
-                <thead className="bg-surface-container-low/50">
-                  <tr>
-                    <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">PO#</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Summary</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Vendor</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Qty</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Recv.</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Delivery</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Status</th>
-                    <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Risk</th>
-                    <th className="text-right px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 font-label">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10">
-                  <tr className="bg-primary/5 border-l-4 border-primary group transition-all cursor-pointer">
-                    <td className="px-6 py-4 text-sm font-bold text-primary">PO-2024-884</td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-slate-900">500x Circuit Boards</p>
-                      <p className="text-[10px] text-slate-500">Tier-1 Components</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">Apex Logistics</td>
-                    <td className="px-6 py-4 text-sm">500</td>
-                    <td className="px-6 py-4 text-sm">450</td>
-                    <td className="px-6 py-4 text-sm font-semibold">2024-10-25</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">DELAYED</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="material-symbols-outlined text-error text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button className="text-slate-400 hover:text-primary transition-colors"><span className="material-symbols-outlined">forum</span></button>
-                      <button className="text-slate-400 hover:text-primary transition-colors"><span className="material-symbols-outlined">visibility</span></button>
-                    </td>
-                  </tr>
-                  
-                  <tr className="hover:bg-surface-container-low transition-all cursor-pointer">
-                    <td className="px-6 py-4 text-sm font-bold text-slate-900">PO-2024-912</td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-slate-900">1200x LED Arrays</p>
-                      <p className="text-[10px] text-slate-500">Display Units</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">Zenith Corp</td>
-                    <td className="px-6 py-4 text-sm">1,200</td>
-                    <td className="px-6 py-4 text-sm">0</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-slate-500">2024-11-05</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 uppercase">Open</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="material-symbols-outlined text-slate-300 text-xl">check_circle</span>
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button className="text-slate-400 hover:text-primary transition-colors"><span className="material-symbols-outlined">forum</span></button>
-                      <button className="text-slate-400 hover:text-primary transition-colors"><span className="material-symbols-outlined">visibility</span></button>
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-surface-container-low transition-all cursor-pointer">
-                    <td className="px-6 py-4 text-sm font-bold text-slate-900">PO-2024-773</td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-slate-900">80x Rack Chassis</p>
-                      <p className="text-[10px] text-slate-500">Infrastructure</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">Titan Steel</td>
-                    <td className="px-6 py-4 text-sm">80</td>
-                    <td className="px-6 py-4 text-sm">80</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-slate-500">2024-09-12</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-800 uppercase">Closed</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="material-symbols-outlined text-slate-300 text-xl">check_circle</span>
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button className="text-slate-400 hover:text-primary transition-colors"><span className="material-symbols-outlined">forum</span></button>
-                      <button className="text-slate-400 hover:text-primary transition-colors"><span className="material-symbols-outlined">visibility</span></button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <div className="p-6 bg-surface-container-low/30 border-t border-outline-variant/10 flex justify-between items-center">
-                <span className="text-xs font-medium text-slate-500">Showing 1-12 of 156 purchase orders</span>
-                <div className="flex gap-1">
-                  <button className="w-8 h-8 rounded border border-outline-variant/30 flex items-center justify-center hover:bg-white"><span className="material-symbols-outlined text-sm">chevron_left</span></button>
-                  <button className="w-8 h-8 rounded bg-primary text-white text-xs font-bold">1</button>
-                  <button className="w-8 h-8 rounded border border-outline-variant/30 flex items-center justify-center hover:bg-white text-xs">2</button>
-                  <button className="w-8 h-8 rounded border border-outline-variant/30 flex items-center justify-center hover:bg-white text-xs">3</button>
-                  <button className="w-8 h-8 rounded border border-outline-variant/30 flex items-center justify-center hover:bg-white"><span className="material-symbols-outlined text-sm">chevron_right</span></button>
+            <div className="max-w-6xl mx-auto w-full">
+              <div className="flex justify-between items-end mb-8">
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase">Purchase Orders</h2>
+                  <p className="text-slate-500 font-medium mt-1">Refined list of procurement documents and delivery status.</p>
                 </div>
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-6 gap-4 mb-6 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                <div className="space-y-1.5 col-span-1">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-slate-400 font-label">Vendor</label>
+                  <select className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-2.5 focus:ring-0" value={filterVendor} onChange={(e) => {setFilterVendor(e.target.value); setCurrentPage(1);}}>
+                    {vendorsList.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5 col-span-1">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-slate-400 font-label">Status</label>
+                  <select className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-2.5 focus:ring-0" value={filterStatus} onChange={(e) => {setFilterStatus(e.target.value); setCurrentPage(1);}}>
+                    {statusList.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5 col-span-1">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-slate-400 font-label">From Date</label>
+                  <input className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-2.5 focus:ring-0" type="date" value={filterDateFrom} onChange={(e) => {setFilterDateFrom(e.target.value); setCurrentPage(1);}} />
+                </div>
+                <div className="space-y-1.5 col-span-1">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-slate-400 font-label">To Date</label>
+                  <input className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-2.5 focus:ring-0" type="date" value={filterDateTo} onChange={(e) => {setFilterDateTo(e.target.value); setCurrentPage(1);}} />
+                </div>
+                <div className="flex items-end col-span-2">
+                  <button onClick={() => {setFilterVendor('All Vendors'); setFilterStatus('Any Status'); setFilterDateFrom(''); setFilterDateTo(''); setSearchTerm(''); setCurrentPage(1);}} className="w-full bg-primary/10 text-primary py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-primary/20 transition-all">Clear All</button>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead className="bg-slate-50/50 dark:bg-slate-800/10">
+                    <tr>
+                      <th className="text-left px-8 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">PO Number</th>
+                      <th className="text-left px-8 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Vendor Entity</th>
+                      <th className="text-left px-8 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Delivery</th>
+                      <th className="text-left px-8 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {loading ? (
+                      [...Array(5)].map((_, i) => <tr key={i} className="animate-pulse"><td colSpan={4} className="px-8 py-6 flex gap-4"><div className="h-10 grow bg-slate-50 dark:bg-slate-800/50 rounded-2xl"></div></td></tr>)
+                    ) : error ? (
+                      <tr><td colSpan={4} className="px-8 py-12 text-center text-error font-bold">{error}</td></tr>
+                    ) : paginatedOrders.length === 0 ? (
+                      <tr><td colSpan={4} className="px-8 py-12 text-center text-slate-400 font-medium">No records found.</td></tr>
+                    ) : (
+                      paginatedOrders.map((po, idx) => (
+                        <tr key={po.po_num + idx} onClick={() => setSelectedOrder(po)} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/5 transition-all cursor-pointer group ${selectedOrder?.po_num === po.po_num ? 'bg-primary/[0.03] dark:bg-primary/[0.07] border-l-4 border-primary' : 'border-l-4 border-transparent'}`}>
+                          <td className="px-8 py-6 font-black text-slate-900 dark:text-white text-sm tracking-tighter">#{po.po_num}</td>
+                          <td className="px-8 py-6">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{po.vendor}</span>
+                              <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">{po.origin.replace(/_/g, ' ')}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6 text-sm font-bold text-slate-500">{po.delivery_date || 'N/A'}</td>
+                          <td className="px-8 py-6">
+                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${po.status === 'Open' ? 'bg-blue-50 text-blue-600 border-blue-100' : po.status === 'Delayed' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>{po.status}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+                {!loading && (
+                  <div className="p-8 bg-slate-50/30 dark:bg-slate-800/5 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    <span>Showing {paginatedOrders.length} of {filteredOrders.length} Units</span>
+                    <div className="flex gap-3">
+                      <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-20 active:scale-90"><span className="material-symbols-outlined text-sm">west</span></button>
+                      <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)} className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-20 active:scale-90"><span className="material-symbols-outlined text-sm">east</span></button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </section>
 
-          <aside className="w-96 bg-white shadow-[-8px_0_24px_rgba(0,0,0,0.02)] z-30 flex flex-col border-l border-outline-variant/10">
-            <div className="p-6 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-lowest">
-              <div>
-                <h3 className="font-bold text-slate-900 font-headline">Order Details</h3>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest font-label mt-0.5">PO-2024-884</p>
-              </div>
-              <button className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8">
-              <div className="space-y-4">
-                <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/10">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <span className="material-symbols-outlined text-primary">local_shipping</span>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500">Vendor</p>
-                      <p className="text-sm font-bold text-slate-900">Apex Logistics</p>
-                    </div>
+          {/* Sidebar */}
+          <aside className={`fixed right-0 top-0 h-full w-[480px] bg-white dark:bg-slate-950 border-l border-slate-200 dark:border-slate-800 z-[70] flex flex-col shadow-2xl transition-transform duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            {selectedOrder && (
+              <>
+                <div className="p-10 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start bg-slate-50/30">
+                  <div className="space-y-4">
+                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-[9px] font-black uppercase tracking-widest">Document Intelligence</span>
+                    <h3 className="text-3xl font-black text-slate-900 dark:text-white font-headline leading-tight tracking-tighter">Order Context</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">PO: {selectedOrder.po_num}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase font-label">Item</p>
-                      <p className="text-xs font-semibold mt-1">Circuit Boards</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase font-label">Delivery Date</p>
-                      <p className="text-xs font-semibold mt-1">2024-10-25</p>
-                    </div>
-                  </div>
+                  <button onClick={() => setSelectedOrder(null)} className="p-3 bg-white dark:bg-slate-800 text-slate-400 hover:text-primary rounded-2xl shadow-sm transition-all active:scale-90"><span className="material-symbols-outlined">close</span></button>
                 </div>
-                
-              </div>
 
-              <div>
-                <h4 className="text-[10px] font-bold text-slate-400 uppercase font-label mb-4">Lifecycle Events</h4>
-                <div className="space-y-4">
-                  <div className="flex gap-4 relative">
-                    <div className="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-slate-100"></div>
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 z-10">
-                      <div className="w-2 h-2 rounded-full bg-primary"></div>
+                <div className="flex-1 overflow-y-auto no-scrollbar p-10 space-y-10">
+                  <div className="grid grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-800/10 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800">
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">SKU Count</p>
+                      <p className="text-lg font-black text-slate-900 dark:text-white">{selectedOrder.items.length}</p>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">Order Delayed</p>
-                      <p className="text-[10px] text-slate-500">Today, 09:42 AM</p>
-                      <p className="text-xs text-slate-600 mt-1">Carrier reported port congestion in South China terminal.</p>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pipeline State</p>
+                      <p className={`text-lg font-black uppercase tracking-tight ${selectedOrder.status === 'Open' ? 'text-primary' : 'text-emerald-500'}`}>{selectedOrder.status}</p>
                     </div>
                   </div>
-                  <div className="flex gap-4 relative">
-                    <div className="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-slate-100"></div>
-                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 z-10">
-                      <div className="w-2 h-2 rounded-full bg-slate-400"></div>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">Partial Receipt (450 Units)</p>
-                      <p className="text-[10px] text-slate-500">Oct 12, 02:15 PM</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 z-10">
-                      <div className="w-2 h-2 rounded-full bg-slate-400"></div>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">PO Created</p>
-                      <p className="text-[10px] text-slate-500">Oct 01, 10:00 AM</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase font-label">Conversation</h4>
-                  <button className="text-[10px] font-bold text-primary hover:underline">OPEN CHAT</button>
-                </div>
-                <div className="bg-surface-container-low rounded-xl p-3 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <img alt="Vendor Avatar" className="w-6 h-6 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgy87wQEZZOmnNpIilPxLfPxToCkVAjLcHs9B8GaCnAV2WrCvPwIYA8nxrhkWpgACKzgpLsfYLFE0CvAP79R5WlcFKmcTTN7Dy-e7d2P5FwHn_kBGDtf7wKwhccpG2X1IhLu3WSI4G4bEZNEeRSkNatnmTROOGOt0-ui8sPlTiSCXotd0mJ3h7j7BNc_VVJ_aVgQ4LkxZ5e00MWSeMw0ALyKcdx1oeuQ05gM_p7ZoIIzan-uyOcdBoKBBuZoTSSm_sY0IdKEGhFbBZ" />
-                    <div className="flex-1 bg-white p-2 rounded-lg text-xs shadow-sm">
-                      <p className="font-bold text-slate-900 text-[10px]">Mark (Apex)</p>
-                      <p className="text-slate-600 mt-1">We are tracking the delay. Shipment is currently at dock.</p>
+                  {/* Line Items Accordion */}
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => setShowLineItems(!showLineItems)}
+                      className="w-full flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 group hover:border-primary/30 transition-all active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${showLineItems ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                          <span className="material-symbols-outlined">list_alt</span>
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-black text-slate-900 dark:text-white">View Line Items</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{selectedOrder.items.length} item(s) found</p>
+                        </div>
+                      </div>
+                      <span className={`material-symbols-outlined transition-transform duration-300 ${showLineItems ? 'rotate-180' : ''}`}>expand_more</span>
+                    </button>
+
+                    <div className={`space-y-4 overflow-hidden transition-all duration-500 ${showLineItems ? 'max-h-[600px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+                      {selectedOrder.items.map((item, idx) => (
+                        <div key={idx} className="p-6 bg-slate-50/50 dark:bg-slate-800/10 border border-slate-100 dark:border-slate-800 rounded-[1.5rem]">
+                          <div className="flex justify-between items-start mb-4">
+                            <p className="text-xs font-black text-slate-900 dark:text-white">Line #{item.item_num || idx + 1}</p>
+                            <span className="text-[9px] font-black px-2 py-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm">{item.unit || 'EA'}</span>
+                          </div>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">{item.article || 'Ref: No Code'}</p>
+                          <p className="text-[10px] font-medium text-slate-500 mb-4">{item.description}</p>
+                          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <div><p className="text-[9px] text-slate-400 font-bold uppercase">Ordered</p><p className="text-xs font-black">{item.quantity}</p></div>
+                            <div><p className="text-[9px] text-slate-400 font-bold uppercase">Received</p><p className="text-xs font-black text-emerald-500">{item.received}</p></div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 justify-end">
-                    <div className="flex-1 bg-primary p-2 rounded-lg text-xs text-white shadow-sm text-right">
-                      <p className="font-bold text-[10px]">You</p>
-                      <p className="mt-1">Can we expedite the remaining 50 units?</p>
-                    </div>
-                  </div>
                 </div>
-              </div>
-            </div>
-            
-            <div className="p-6 border-t border-outline-variant/10 grid grid-cols-2 gap-3 bg-surface-container-lowest">
-              <button className="py-2.5 px-4 bg-surface-container-high text-primary font-bold rounded-lg text-xs hover:bg-slate-200 transition-colors">
-                View Full History
-              </button>
-              <button className="py-2.5 px-4 bg-primary text-white font-bold rounded-lg text-xs hover:opacity-90 shadow-lg shadow-primary/20 transition-all">
-                Update Priority
-              </button>
-            </div>
+
+                <div className="p-10 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950">
+                  <button className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-sm tracking-tight">Sync Data Now</button>
+                </div>
+              </>
+            )}
           </aside>
+
+          {isSidebarOpen && <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-sm z-[65]" onClick={() => setSelectedOrder(null)}></div>}
         </div>
       </main>
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .font-headline { font-family: 'Outfit', sans-serif; }
+      `}</style>
     </div>
   );
 };
