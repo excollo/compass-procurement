@@ -12,6 +12,10 @@ const Vendors = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [error, setError] = useState(null);
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 25;
+
     useEffect(() => {
         fetchVendors();
     }, []);
@@ -30,7 +34,7 @@ const Vendors = () => {
             setError(null);
             const { data, error } = await supabase
                 .from('vendor_master')
-                .select('vendor, vendor_name1, contact_person, contact_number, city, postal_code, gst_number, pan_number, msmed_statis, status, email_address_1');
+                .select('vendor, vendor_name1, contact_person, contact_number, city, postal_code, gst_number, pan_number, msmed_status, status, email_address_1');
 
             if (error) throw error;
             setVendors(data || []);
@@ -47,6 +51,14 @@ const Vendors = () => {
         (vendor.vendor?.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
         (vendor.city?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    // Pagination logic
+    const totalPages = Math.ceil(filteredVendors.length / ITEMS_PER_PAGE) || 1;
+    const paginatedVendors = filteredVendors.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
 
     return (
         <div className="flex h-screen overflow-hidden bg-background">
@@ -91,7 +103,7 @@ const Vendors = () => {
                                 {[
                                     { label: 'Total Partnerships', value: vendors.length, icon: 'hub', color: 'bg-blue-500' },
                                     { label: 'Active Status', value: vendors.filter(v => v.status === 'Active').length || vendors.length, icon: 'check_circle', color: 'bg-emerald-500' },
-                                    { label: 'MSMED Registered', value: vendors.filter(v => v.msmed_statis === 'Yes').length || 0, icon: 'verified', color: 'bg-indigo-500' },
+                                    { label: 'MSMED Registered', value: vendors.filter(v => v.msmed_status === 'Yes').length || 0, icon: 'verified', color: 'bg-indigo-500' },
                                     { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || 0, icon: 'public', color: 'bg-amber-500' },
                                 ].map((stat, i) => (
                                     <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all cursor-default overflow-hidden relative group">
@@ -129,7 +141,7 @@ const Vendors = () => {
                                         ) : filteredVendors.length === 0 ? (
                                             <tr><td colSpan={5} className="px-8 py-12 text-center text-slate-400">No vendors found matches your criteria.</td></tr>
                                         ) : (
-                                            filteredVendors.map((vendor, idx) => (
+                                            paginatedVendors.map((vendor, idx) => (
                                                 <tr key={idx} onClick={() => setSelectedVendor(vendor)} className={`hover:bg-slate-50 dark:hover:bg-slate-800/10 transition-all cursor-pointer border-l-4 ${selectedVendor?.vendor === vendor.vendor ? 'bg-primary/[0.03] border-primary' : 'border-transparent'}`}>
                                                     <td className="px-8 py-6 text-sm font-black text-slate-900 dark:text-white tracking-tighter">#{vendor.vendor}</td>
                                                     <td className="px-8 py-6">
@@ -155,10 +167,10 @@ const Vendors = () => {
                                     </tbody>
                                 </table>
                                 <div className="p-8 bg-slate-50/50 dark:bg-slate-800/5 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    <span>Syncing Partner Profiles</span>
+                                    <span>Showing {paginatedVendors.length} of {filteredVendors.length} Partner Profiles</span>
                                     <div className="flex gap-2">
-                                        <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all active:scale-90"><span className="material-symbols-outlined text-sm">west</span></button>
-                                        <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all active:scale-90"><span className="material-symbols-outlined text-sm">east</span></button>
+                                        <button disabled={currentPage === 1} onClick={(e) => {e.stopPropagation(); setCurrentPage(p => Math.max(1, p - 1))}} className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all active:scale-90 disabled:opacity-20"><span className="material-symbols-outlined text-sm">west</span></button>
+                                        <button disabled={currentPage >= totalPages} onClick={(e) => {e.stopPropagation(); setCurrentPage(p => p + 1)}} className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all active:scale-90 disabled:opacity-20"><span className="material-symbols-outlined text-sm">east</span></button>
                                     </div>
                                 </div>
                             </div>
@@ -180,7 +192,7 @@ const Vendors = () => {
                                         </div>
                                         <div className="flex gap-3">
                                             <span className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black rounded-xl border border-emerald-200/50 dark:border-emerald-800/50 uppercase tracking-tight">Active Partner</span>
-                                            {selectedVendor.msmed_statis === 'Yes' && (
+                                            {selectedVendor.msmed_status === 'Yes' && (
                                                 <span className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-black rounded-xl border border-blue-200/50 dark:border-blue-800/50 uppercase tracking-tight">MSMED REDIRECTION</span>
                                             )}
                                         </div>
