@@ -65,14 +65,14 @@ const Chats = () => {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            {/* <div className="flex items-center gap-3">
               <button className="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-all">
                 <span className="material-symbols-outlined">search</span>
               </button>
               <button className="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-all">
                 <span className="material-symbols-outlined">more_vert</span>
               </button>
-            </div>
+            </div> */}
           </header>
 
           <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-[#fafbfd]">
@@ -139,17 +139,6 @@ const Chats = () => {
                 <span className="material-symbols-outlined">send</span>
               </button>
             </div>
-            <div className="mt-4 flex items-center justify-center gap-6">
-              <button className="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest hover:text-primary transition-all">
-                <span className="material-symbols-outlined text-sm">alternate_email</span> Mention PO
-              </button>
-              <button className="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest hover:text-primary transition-all">
-                <span className="material-symbols-outlined text-sm">insert_drive_file</span> Attach Invoice
-              </button>
-              <button className="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest hover:text-primary transition-all">
-                <span className="material-symbols-outlined text-sm">schedule</span> Set Reminder
-              </button>
-            </div>
           </footer>
         </section>
 
@@ -213,16 +202,6 @@ const Chats = () => {
             </div>
           </div>
           
-          <div className="mx-6 mb-6 mt-auto p-4 glass-insight border border-white/40 rounded-2xl shadow-xl flex-shrink-0">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
-              <span className="text-[10px] font-black text-on-surface uppercase tracking-widest">AI Prediction</span>
-            </div>
-            <p className="text-xs text-on-surface-variant leading-relaxed font-medium">
-              Apex has a 22% delay recurrence on this route. Recommend switching to <span className="font-bold text-on-surface">Swift Logistics</span> for Q4 shipments.
-            </p>
-            <button className="mt-3 text-[10px] font-bold text-primary hover:underline uppercase">View Full Analysis</button>
-          </div>
         </section>
       </main>
     </div>

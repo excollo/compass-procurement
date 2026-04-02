@@ -21,12 +21,7 @@ const Orders = () => {
               <button className="p-2 text-slate-500 hover:bg-slate-200/50 rounded-full transition-colors">
                 <span className="material-symbols-outlined">notifications</span>
               </button>
-              <button className="p-2 text-slate-500 hover:bg-slate-200/50 rounded-full transition-colors">
-                <span className="material-symbols-outlined">help_outline</span>
-              </button>
             </div>
-            <div className="h-6 w-[1px] bg-outline-variant/20 mx-2"></div>
-            <button className="text-sm font-semibold text-primary hover:underline">Support</button>
             <div className="flex items-center gap-2 ml-4">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-bold text-slate-900">Alex Chen</p>
@@ -236,21 +231,6 @@ const Orders = () => {
                   </div>
                 </div>
                 
-                <div className="p-4 bg-error-container/20 rounded-xl border border-error/10 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-2 opacity-10">
-                    <span className="material-symbols-outlined text-error text-4xl">bolt</span>
-                  </div>
-                  <h4 className="text-[10px] font-bold text-error uppercase font-label flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">psychology</span>
-                    AI Risk Insight
-                  </h4>
-                  <p className="text-xs font-medium text-on-error-container mt-2 leading-relaxed">
-                    Supply chain disruption detected at Shenzhen port. Potential 4-day delay in shipping transit.
-                  </p>
-                  <button className="mt-3 text-[10px] font-bold text-primary flex items-center gap-1 hover:underline">
-                    MITIGATION PLAN <span className="material-symbols-outlined text-xs">arrow_forward</span>
-                  </button>
-                </div>
               </div>
 
               <div>

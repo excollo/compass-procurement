@@ -11,20 +11,17 @@ const Dashboard = () => {
         <header className="flex justify-between items-center h-16 px-8 w-full bg-white dark:bg-slate-900 sticky top-0 z-40 transition-all flex-shrink-0 border-b border-surface-container/50">
           <div className="flex items-center gap-8">
             <span className="text-lg font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline">Architect Intelligence</span>
-            <div className="hidden lg:flex items-center gap-6">
+            {/* <div className="hidden lg:flex items-center gap-6">
               <nav className="flex items-center gap-6 h-16">
                 <a className="text-[#2563eb] font-semibold border-b-2 border-[#2563eb] h-full flex items-center px-1" href="#">Overview</a>
-                <a className="text-slate-500 dark:text-slate-400 font-medium hover:text-slate-900 transition-colors" href="#">Analytics</a>
-                <a className="text-slate-500 dark:text-slate-400 font-medium hover:text-slate-900 transition-colors" href="#">Vendors</a>
               </nav>
-            </div>
+            </div> */}
           </div>
           <div className="flex items-center gap-4">
             <div className="relative group">
               <span className="material-symbols-outlined p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-full cursor-pointer transition-colors">notifications</span>
               <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
             </div>
-            <span className="material-symbols-outlined p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-full cursor-pointer transition-colors">help_outline</span>
             <div className="h-8 w-[1px] bg-outline-variant/20 mx-2"></div>
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
@@ -231,15 +228,6 @@ const Dashboard = () => {
                 <button className="w-full text-center py-4 border-t border-outline-variant/10 text-xs font-bold text-on-surface-variant hover:text-on-surface transition-colors">Open Message Center</button>
               </div>
 
-              <div className="glass-insight p-6 rounded-2xl border border-primary/20 flex gap-4 items-start shadow-sm">
-                <div className="bg-primary/10 p-2 rounded-lg text-primary">
-                  <span className="material-symbols-outlined">lightbulb</span>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-on-surface">AI Recommendation</p>
-                  <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">System predicts a 15% increase in delays from East Coast vendors next week due to logistics strikes.</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -276,22 +264,6 @@ const Dashboard = () => {
                   <span className="px-4 py-1.5 bg-white rounded-full text-[11px] font-bold font-label shadow-sm border border-outline-variant/20 text-on-surface-variant">Inventory Manifest</span>
                 </div>
                 <input accept=".xlsx, .csv" className="absolute inset-0 opacity-0 cursor-pointer" type="file" />
-              </div>
-              <div className="mt-8 flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/20">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-outline-variant/10">
-                    <span className="material-symbols-outlined text-primary">description</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">Waiting for selection...</p>
-                    <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">No file uploaded yet</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-primary bg-primary-fixed px-3 py-1.5 rounded-lg flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm">auto_fix_high</span> AI Mapping Ready
-                  </span>
-                </div>
               </div>
             </div>
             <div className="p-6 bg-surface-container-lowest border-t border-outline-variant/10 flex justify-end gap-3">

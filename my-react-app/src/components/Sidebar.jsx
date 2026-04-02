@@ -26,24 +26,19 @@ const Sidebar = () => {
           <span className="material-symbols-outlined">forum</span>
           Chats
         </NavLink>
-        <NavLink to="/uploads" className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-transform duration-200 ease-in-out text-xs font-semibold font-label ${isActive ? 'bg-white dark:bg-slate-800 text-[#2563eb] shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/50 dark:hover:bg-slate-800/50'}`}>
+        {/* <NavLink to="/uploads" className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-transform duration-200 ease-in-out text-xs font-semibold font-label ${isActive ? 'bg-white dark:bg-slate-800 text-[#2563eb] shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/50 dark:hover:bg-slate-800/50'}`}>
           <span className="material-symbols-outlined">cloud_upload</span>
           Uploads
+        </NavLink> */}
+        <NavLink to="/vendors" className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-transform duration-200 ease-in-out text-xs font-semibold font-label ${isActive ? 'bg-white dark:bg-slate-800 text-[#2563eb] shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/50 dark:hover:bg-slate-800/50'}`}>
+          <span className="material-symbols-outlined">storefront</span>
+          Vendors
         </NavLink>
-        <NavLink to="/settings" className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-transform duration-200 ease-in-out text-xs font-semibold font-label ${isActive ? 'bg-white dark:bg-slate-800 text-[#2563eb] shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/50 dark:hover:bg-slate-800/50'}`}>
+        {/* <NavLink to="/settings" className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-transform duration-200 ease-in-out text-xs font-semibold font-label ${isActive ? 'bg-white dark:bg-slate-800 text-[#2563eb] shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/50 dark:hover:bg-slate-800/50'}`}>
           <span className="material-symbols-outlined">settings</span>
           Settings
-        </NavLink>
+        </NavLink> */}
       </nav>
-      <div className="mt-auto pt-4 border-t border-slate-200/50 dark:border-slate-800 space-y-1">
-        <button className="w-full bg-cta-gradient text-white py-3 px-4 rounded-xl font-bold text-sm shadow-lg mb-4 hover:opacity-90 active:scale-95 transition-all">
-          New Request
-        </button>
-        <a href="#" className="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 font-label text-xs font-semibold">
-          <span className="material-symbols-outlined">help</span>
-          Help Center
-        </a>
-      </div>
     </aside>
   );
 };
