@@ -22,7 +22,8 @@ const OrderDetail = () => {
                     .order('po_item', { ascending: true });
 
                 if (error) throw error;
-                setPoItems(data || []);
+                const sortedData = (data || []).sort((a, b) => Number(a.po_item) - Number(b.po_item));
+                setPoItems(sortedData);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -76,18 +77,30 @@ const OrderDetail = () => {
 
     const header = poItems[0];
     
+    const formatQty = (v) => Number(parseFloat(v || 0).toFixed(2));
+
     // KPI Calculations
     const totalLines = poItems.length;
-    const totalOrdered = poItems.reduce((acc, item) => acc + (parseFloat(item.po_quantity) || 0), 0);
-    const totalDelivered = poItems.reduce((acc, item) => acc + (parseFloat(item.delivered_quantity) || 0), 0);
-    const totalOpen = poItems.reduce((acc, item) => acc + (parseFloat(item.open_quantity) || 0), 0);
-    const fulfillmentRate = totalOrdered > 0 ? (totalDelivered / totalOrdered) * 100 : 0;
+    const totalOrdered = poItems.reduce((acc, item) => acc + formatQty(item.po_quantity), 0);
+    const totalDelivered = poItems.reduce((acc, item) => acc + formatQty(item.delivered_quantity), 0);
+    const pendingLinesCount = poItems.filter(item => formatQty(item.open_quantity) > 0).length;
+    
+    const fulfillmentRate = totalOrdered > 0 ? Math.round((totalDelivered / totalOrdered) * 100) : 0;
 
-    const getFulfillmentColor = (rate) => {
-        if (rate >= 100) return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10';
-        if (rate >= 50) return 'text-amber-500 bg-amber-50 dark:bg-amber-500/10';
-        return 'text-red-500 bg-red-50 dark:bg-red-500/10';
+    const getFulfillmentRateColor = (rate) => {
+        if (rate >= 100) return 'text-emerald-500';
+        if (rate >= 90) return 'text-amber-500';
+        return 'text-red-500';
     };
+
+    const todayDate = new Date();
+    todayDate.setHours(0,0,0,0);
+    let daysDiff = 0;
+    if (header?.delivery_date) {
+        const etd = new Date(header.delivery_date);
+        etd.setHours(0,0,0,0);
+        daysDiff = Math.ceil((etd - todayDate) / (1000 * 60 * 60 * 24));
+    }
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
@@ -148,27 +161,48 @@ const OrderDetail = () => {
                         </div>
 
                         {/* ━━ KPI Cards Row ━━ */}
-                        <div className="grid grid-cols-5 gap-6">
-                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm">
+                        <div className="grid grid-cols-4 gap-6">
+                            {/* Card 1: Total Lines */}
+                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm flex flex-col justify-center items-center">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Lines</p>
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white">{totalLines}</h3>
+                                <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{totalLines}</h3>
+                                <div className="text-[10px] font-bold text-slate-400">Line items in this PO</div>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Units Ordered</p>
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white">{totalOrdered}</h3>
+                            
+                            {/* Card 2: Delivery Date */}
+                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm flex flex-col justify-center items-center">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Delivery Date</p>
+                                <h3 className={`text-2xl font-black leading-none py-2 ${daysDiff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                    {header?.delivery_date ? header.delivery_date.split(' ')[0] : 'N/A'}
+                                </h3>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Delivered</p>
-                                <h3 className="text-2xl font-black text-emerald-500">{totalDelivered}</h3>
+
+                            {/* Card 3: Pending Lines */}
+                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm flex flex-col justify-center items-center">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Pending Lines</p>
+                                {pendingLinesCount > 0 ? (
+                                    <>
+                                        <h3 className="text-2xl font-black text-red-500 mb-2">{pendingLinesCount}</h3>
+                                        <div className="px-3 py-1 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-100 dark:border-red-800 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                            Awaiting fulfillment
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h3 className="text-2xl font-black text-emerald-500 mb-2">0</h3>
+                                        <div className="px-3 py-1 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                            All fulfilled
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Pending</p>
-                                <h3 className={`text-2xl font-black ${totalOpen > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{totalOpen}</h3>
-                            </div>
-                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Fulfillment</p>
-                                <div className={`inline-block px-3 py-1 rounded-lg font-black text-lg ${getFulfillmentColor(fulfillmentRate)}`}>
-                                    {fulfillmentRate.toFixed(1)}%
+
+                            {/* Card 4: Fulfillment Rate */}
+                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm flex flex-col justify-center w-full">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Fulfillment Rate</p>
+                                <h3 className={`text-2xl font-black mb-3 text-center ${getFulfillmentRateColor(fulfillmentRate)}`}>{fulfillmentRate}%</h3>
+                                <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-2">
+                                    <div className={`h-full rounded-full ${fulfillmentRate >= 100 ? 'bg-emerald-500' : fulfillmentRate >= 90 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${fulfillmentRate}%` }}></div>
                                 </div>
                             </div>
                         </div>
@@ -197,16 +231,15 @@ const OrderDetail = () => {
                                     </thead>
                                     <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                                         {poItems.map((item, idx) => {
-                                            const ordered = parseFloat(item.po_quantity) || 0;
-                                            const delivered = parseFloat(item.delivered_quantity) || 0;
-                                            const open = parseFloat(item.open_quantity) || 0;
+                                            const ordered = formatQty(item.po_quantity);
+                                            const delivered = formatQty(item.delivered_quantity);
+                                            const open = formatQty(item.open_quantity);
                                             const rate = ordered > 0 ? (delivered / ordered) * 100 : 0;
                                             
                                             return (
                                                 <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-all group">
                                                     <td className="px-8 py-6">
-                                                        <p className="text-sm font-black text-slate-900 dark:text-white leading-none">#{item.po_item}</p>
-                                                        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{item.article_code}</p>
+                                                        <p className="text-sm font-black text-slate-900 dark:text-white leading-none">#{Number(item.po_item) / 10}</p>
                                                     </td>
                                                     <td className="px-8 py-6 max-w-[280px]">
                                                          <p 
@@ -216,12 +249,12 @@ const OrderDetail = () => {
                                                             {item.article_description}
                                                          </p>
                                                     </td>
-                                                    <td className="px-8 py-6 text-right font-black text-slate-700 dark:text-slate-300 text-sm italic">{ordered}</td>
-                                                    <td className="px-8 py-6 text-right font-black text-emerald-500 text-sm italic">{delivered}</td>
+                                                    <td className="px-8 py-6 text-right font-black text-slate-700 dark:text-slate-300 text-sm italic">{ordered.toLocaleString('en-US', { maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-8 py-6 text-right font-black text-emerald-500 text-sm italic">{delivered.toLocaleString('en-US', { maximumFractionDigits: 2 })}</td>
                                                     <td className="px-8 py-6 text-right">
                                                         <div className="inline-flex items-center gap-2">
                                                             {open > 0 && <span className="material-symbols-outlined text-sm text-red-500 animate-bounce">warning</span>}
-                                                            <span className={`font-black text-sm italic ${open > 0 ? 'text-red-500' : 'text-slate-400'}`}>{open}</span>
+                                                            <span className={`font-black text-sm italic ${open > 0 ? 'text-red-500' : 'text-slate-400'}`}>{open.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
                                                         </div>
                                                     </td>
                                                     <td className="px-8 py-6 text-center">
