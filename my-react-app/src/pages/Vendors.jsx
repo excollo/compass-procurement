@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 
+const isMSMERegistered = (status) => {
+    if (!status) return false;
+    const s = String(status).trim().toLowerCase();
+    return s === 'yes' || s === 'y' || s === 'true' || s === 'registered';
+};
+
 const Vendors = () => {
     const navigate = useNavigate();
     const [vendors, setVendors] = useState([]);
@@ -103,7 +109,7 @@ const Vendors = () => {
                                 {[
                                     { label: 'Total Partnerships', value: vendors.length, icon: 'hub', color: 'bg-blue-500' },
                                     { label: 'Active Status', value: vendors.filter(v => v.status === 'Active').length || vendors.length, icon: 'check_circle', color: 'bg-emerald-500' },
-                                    { label: 'MSMED Registered', value: vendors.filter(v => v.msmed_status === 'Yes').length || 0, icon: 'verified', color: 'bg-indigo-500' },
+                                    { label: 'MSMED Registered', value: vendors.filter(v => isMSMERegistered(v.msmed_status)).length || 0, icon: 'verified', color: 'bg-indigo-500' },
                                     { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || 0, icon: 'public', color: 'bg-amber-500' },
                                 ].map((stat, i) => (
                                     <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all cursor-default overflow-hidden relative group">
@@ -192,7 +198,7 @@ const Vendors = () => {
                                         </div>
                                         <div className="flex gap-3">
                                             <span className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black rounded-xl border border-emerald-200/50 dark:border-emerald-800/50 uppercase tracking-tight">Active Partner</span>
-                                            {selectedVendor.msmed_status === 'Yes' && (
+                                            {isMSMERegistered(selectedVendor.msmed_status) && (
                                                 <span className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-black rounded-xl border border-blue-200/50 dark:border-blue-800/50 uppercase tracking-tight">MSMED REDIRECTION</span>
                                             )}
                                         </div>
