@@ -66,7 +66,7 @@ const OrderDetail = () => {
                             {error || "We couldn't locate any line items indexed for this Purchase Order in our active pipeline."}
                         </p>
                         <Link to="/orders" className="block w-full py-4 bg-primary text-white font-black rounded-3xl uppercase tracking-widest text-xs shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
-                            ← Return to Purchase Orders
+                            Return to Purchase Orders
                         </Link>
                     </div>
                 </div>
@@ -97,7 +97,7 @@ const OrderDetail = () => {
                 <header className="px-10 py-8 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 z-10">
                     <Link to="/orders" className="inline-flex items-center gap-2 text-xs font-black text-slate-400 hover:text-primary transition-colors uppercase tracking-widest mb-6 group">
                         <span className="material-symbols-outlined text-sm group-hover:-translate-x-1 transition-transform">west</span>
-                        ← Purchase Orders
+                        Purchase Orders
                     </Link>
                     <div className="flex justify-between items-end">
                         <div className="flex items-center gap-6">

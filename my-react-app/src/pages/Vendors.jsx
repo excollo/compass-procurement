@@ -130,7 +130,7 @@ const Vendors = () => {
                                             <th className="text-left px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Vendor Name</th>
                                             <th className="text-left px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Primary Contact</th>
                                             <th className="text-left px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Location</th>
-                                            <th className="text-right px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Code</th>
+                                            <th className="text-right px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Postal Code</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">

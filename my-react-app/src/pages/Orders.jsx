@@ -117,7 +117,7 @@ const Orders = () => {
           <div className="max-w-6xl mx-auto w-full">
             <div className="flex justify-between items-end mb-8">
               <div className="space-y-1">
-                <h2 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">Active Pipeline</h2>
+                <h2 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">Purchase Order</h2>
                 <p className="text-slate-500 font-medium tracking-tight">Real-time inventory synchronization for open purchase orders.</p>
               </div>
             </div>
