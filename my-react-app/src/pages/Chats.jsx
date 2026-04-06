@@ -1,11 +1,122 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
+import useChatMessages from '../hooks/useChatMessages';
+
+// Format a timestamp to h:mm AM/PM
+const formatTime = (timestamp) => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+// Chat bubble component per sender_type
+const ChatBubble = ({ message }) => {
+  const { sender_type, message_text, sent_at, escalation_required } = message;
+
+  if (sender_type === 'vendor') {
+    // Right-aligned, blue filled bubble
+    return (
+      <>
+        <div className="flex items-start gap-4 flex-row-reverse">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 overflow-hidden text-blue-800 font-bold text-[10px]">
+            V
+          </div>
+          <div className="flex flex-col items-end gap-1 max-w-[70%]">
+            <span className="text-[10px] font-bold text-on-surface-variant mr-2 uppercase">Vendor Rep</span>
+            <div className="p-4 bg-primary text-white rounded-2xl rounded-tr-none shadow-md shadow-primary/10 text-sm leading-relaxed">
+              {message_text}
+            </div>
+            <span className="text-[10px] text-on-surface-variant/60 mr-2 text-right">{formatTime(sent_at)}</span>
+          </div>
+        </div>
+        {escalation_required && <EscalationBanner />}
+      </>
+    );
+  }
+
+  if (sender_type === 'operator') {
+    // Left-aligned, white bubble with border
+    return (
+      <>
+        <div className="flex items-start gap-4">
+          <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 text-white font-bold text-[10px]">SC</div>
+          <div className="flex flex-col gap-1 max-w-[70%]">
+            <span className="text-[10px] font-bold text-primary ml-2 uppercase">Sarah (Operator)</span>
+            <div className="p-4 bg-white border border-outline-variant/30 rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed text-on-surface">
+              {message_text}
+            </div>
+            <span className="text-[10px] text-on-surface-variant/60 ml-2">{formatTime(sent_at)}</span>
+          </div>
+        </div>
+        {escalation_required && <EscalationBanner />}
+      </>
+    );
+  }
+
+  // Default: bot — left-aligned, grey neutral bubble
+  return (
+    <>
+      <div className="flex items-start gap-4">
+        <div className="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center flex-shrink-0">
+          <span className="material-symbols-outlined text-sm text-on-surface-variant">smart_toy</span>
+        </div>
+        <div className="flex flex-col gap-1 max-w-[70%]">
+          <span className="text-[10px] font-bold text-on-surface-variant ml-2 uppercase">Architect Bot</span>
+          <div className="p-4 bg-white/60 border border-outline-variant/30 backdrop-blur-md rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed">
+            {message_text}
+          </div>
+          <span className="text-[10px] text-on-surface-variant/60 ml-2">{formatTime(sent_at)}</span>
+        </div>
+      </div>
+      {escalation_required && <EscalationBanner />}
+    </>
+  );
+};
+
+// Escalation warning banner
+const EscalationBanner = () => (
+  <div className="flex justify-center">
+    <div className="px-6 py-2 bg-error-container/30 border border-error-container rounded-lg flex items-center gap-3">
+      <span className="material-symbols-outlined text-error text-lg">warning</span>
+      <span className="text-xs font-bold text-on-error-container">
+        ⚠️ Bot detected high-risk delay. Requesting human operator...
+      </span>
+    </div>
+  </div>
+);
+
+// Loading skeleton for chat area
+const ChatSkeleton = () => (
+  <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+    <div className="animate-spin w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full"></div>
+    <p className="text-sm text-on-surface-variant font-medium animate-pulse">Loading messages...</p>
+  </div>
+);
 
 const Chats = () => {
   const [poData, setPoData] = useState([]);
   const [selectedPo, setSelectedPo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef(null);
+
+  // Fetch chat messages for selected PO using the custom hook
+  const {
+    messages: chatMessages,
+    loading: chatLoading,
+    error: chatError,
+  } = useChatMessages(selectedPo?.po_num);
+
+  // Auto scroll when messages change
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
 
   useEffect(() => {
     const fetchPOData = async () => {
@@ -117,55 +228,36 @@ const Chats = () => {
                 </div>
               </header>
 
-              <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-[#fafbfd]">
-                <div className="flex justify-center">
-                  <span className="px-4 py-1 bg-surface-container-low rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Today</span>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined text-sm text-on-surface-variant">smart_toy</span>
+              {/* Chat messages area */}
+              {chatLoading ? (
+                <ChatSkeleton />
+              ) : chatError ? (
+                <div className="flex-1 flex items-center justify-center p-8">
+                  <div className="text-center space-y-3">
+                    <span className="material-symbols-outlined text-4xl text-error/60">error</span>
+                    <p className="text-sm font-medium text-on-surface-variant">Could not load messages. Please try again.</p>
                   </div>
-                  <div className="flex flex-col gap-1 max-w-[70%]">
-                    <span className="text-[10px] font-bold text-on-surface-variant ml-2 uppercase">Architect Bot</span>
-                    <div className="p-4 bg-white/60 border border-outline-variant/30 backdrop-blur-md rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed">
-                      Hello {selectedPo.vendor_name} Team, I am checking on the ETA for PO-{selectedPo.po_num}. It was scheduled for delivery recently. Could you please provide a status update?
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-[#fafbfd]">
+                  <div className="flex justify-center">
+                    <span className="px-4 py-1 bg-surface-container-low rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Today</span>
+                  </div>
+
+                  {chatMessages.length === 0 && !chatLoading && (
+                    <div className="flex justify-center py-12">
+                      <p className="text-sm text-on-surface-variant/60 italic">No messages yet for this PO.</p>
                     </div>
-                    <span className="text-[10px] text-on-surface-variant/60 ml-2">10:15 AM</span>
-                  </div>
-                </div>
+                  )}
 
-                <div className="flex items-start gap-4 flex-row-reverse">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 overflow-hidden text-blue-800 font-bold text-[10px]">
-                    V
-                  </div>
-                  <div className="flex flex-col items-end gap-1 max-w-[70%]">
-                    <span className="text-[10px] font-bold text-on-surface-variant mr-2 uppercase">Vendor Rep</span>
-                    <div className="p-4 bg-primary text-white rounded-2xl rounded-tr-none shadow-md shadow-primary/10 text-sm leading-relaxed">
-                      Hi there. We had a minor delay with the raw material sourcing. Dispatching as soon as possible, but we are looking at a few days delay. Apologies for the late notice regarding PO-{selectedPo.po_num}.
-                    </div>
-                    <span className="text-[10px] text-on-surface-variant/60 mr-2 text-right">10:18 AM</span>
-                  </div>
-                </div>
+                  {chatMessages.map((msg) => (
+                    <ChatBubble key={msg.id} message={msg} />
+                  ))}
 
-                <div className="flex justify-center">
-                  <div className="px-6 py-2 bg-error-container/30 border border-error-container rounded-lg flex items-center gap-3">
-                    <span className="material-symbols-outlined text-error text-lg">warning</span>
-                    <span className="text-xs font-bold text-on-error-container">Bot detected high-risk delay. Requesting human operator...</span>
-                  </div>
+                  {/* Auto-scroll anchor */}
+                  <div ref={messagesEndRef} />
                 </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 text-white font-bold text-[10px]">SC</div>
-                  <div className="flex flex-col gap-1 max-w-[70%]">
-                    <span className="text-[10px] font-bold text-primary ml-2 uppercase">Sarah (Operator)</span>
-                    <div className="p-4 bg-primary-container text-on-primary-container rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed">
-                      Hi team, this is Sarah from operations. Please confirm the exact expedited ETA for {selectedPo.article_description} so we can plan accordingly.
-                    </div>
-                    <span className="text-[10px] text-on-surface-variant/60 ml-2">10:22 AM</span>
-                  </div>
-                </div>
-              </div>
+              )}
 
               <footer className="p-6 bg-white border-t border-outline-variant/10 flex-shrink-0 mt-auto">
                 <div className="flex items-end gap-4 max-w-5xl mx-auto">
