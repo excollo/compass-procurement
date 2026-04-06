@@ -295,6 +295,12 @@ const Chats = () => {
                     <p className="text-[10px] font-bold text-on-surface-variant uppercase">Vendor</p>
                     <p className="text-sm font-bold text-on-surface underline underline-offset-4 decoration-primary/30">{selectedPo.vendor_name}</p>
                   </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase">Delivery Date</p>
+                    <p className="text-sm font-medium text-on-surface">
+                      {selectedPo.delivery_date ? new Date(selectedPo.delivery_date).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
