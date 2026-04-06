@@ -19,35 +19,16 @@ const ChatBubble = ({ message }) => {
   const { sender_type, message_text, sent_at, escalation_required } = message;
 
   if (sender_type === 'vendor') {
-    // Right-aligned, blue filled bubble
-    return (
-      <>
-        <div className="flex items-start gap-4 flex-row-reverse">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 overflow-hidden text-blue-800 font-bold text-[10px]">
-            V
-          </div>
-          <div className="flex flex-col items-end gap-1 max-w-[70%]">
-            <span className="text-[10px] font-bold text-on-surface-variant mr-2 uppercase">Vendor Rep</span>
-            <div className="p-4 bg-primary text-white rounded-2xl rounded-tr-none shadow-md shadow-primary/10 text-sm leading-relaxed">
-              {message_text}
-            </div>
-            <span className="text-[10px] text-on-surface-variant/60 mr-2 text-right">{formatTime(sent_at)}</span>
-          </div>
-        </div>
-        {escalation_required && <EscalationBanner />}
-      </>
-    );
-  }
-
-  if (sender_type === 'operator') {
-    // Left-aligned, white bubble with border
+    // Left-aligned, blue bubble (incoming from vendor)
     return (
       <>
         <div className="flex items-start gap-4">
-          <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 text-white font-bold text-[10px]">SC</div>
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 overflow-hidden text-blue-800 font-bold text-[10px]">
+            V
+          </div>
           <div className="flex flex-col gap-1 max-w-[70%]">
-            <span className="text-[10px] font-bold text-primary ml-2 uppercase">Sarah (Operator)</span>
-            <div className="p-4 bg-white border border-outline-variant/30 rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed text-on-surface">
+            <span className="text-[10px] font-bold text-on-surface-variant ml-2 uppercase">Vendor Rep</span>
+            <div className="p-4 bg-primary text-white rounded-2xl rounded-tl-none shadow-md shadow-primary/10 text-sm leading-relaxed">
               {message_text}
             </div>
             <span className="text-[10px] text-on-surface-variant/60 ml-2">{formatTime(sent_at)}</span>
@@ -58,19 +39,38 @@ const ChatBubble = ({ message }) => {
     );
   }
 
-  // Default: bot — left-aligned, grey neutral bubble
+  if (sender_type === 'operator') {
+    // Right-aligned, white bubble with border (outgoing from operator)
+    return (
+      <>
+        <div className="flex items-start gap-4 flex-row-reverse">
+          <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 text-white font-bold text-[10px]">SC</div>
+          <div className="flex flex-col items-end gap-1 max-w-[70%]">
+            <span className="text-[10px] font-bold text-primary mr-2 uppercase">Sarah (Operator)</span>
+            <div className="p-4 bg-white border border-outline-variant/30 rounded-2xl rounded-tr-none shadow-sm text-sm leading-relaxed text-on-surface">
+              {message_text}
+            </div>
+            <span className="text-[10px] text-on-surface-variant/60 mr-2">{formatTime(sent_at)}</span>
+          </div>
+        </div>
+        {escalation_required && <EscalationBanner />}
+      </>
+    );
+  }
+
+  // Default: bot — right-aligned, grey neutral bubble (outgoing from bot)
   return (
     <>
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-4 flex-row-reverse">
         <div className="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center flex-shrink-0">
           <span className="material-symbols-outlined text-sm text-on-surface-variant">smart_toy</span>
         </div>
-        <div className="flex flex-col gap-1 max-w-[70%]">
-          <span className="text-[10px] font-bold text-on-surface-variant ml-2 uppercase">Architect Bot</span>
-          <div className="p-4 bg-white/60 border border-outline-variant/30 backdrop-blur-md rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed">
+        <div className="flex flex-col items-end gap-1 max-w-[70%]">
+          <span className="text-[10px] font-bold text-on-surface-variant mr-2 uppercase">Architect Bot</span>
+          <div className="p-4 bg-white/60 border border-outline-variant/30 backdrop-blur-md rounded-2xl rounded-tr-none shadow-sm text-sm leading-relaxed">
             {message_text}
           </div>
-          <span className="text-[10px] text-on-surface-variant/60 ml-2">{formatTime(sent_at)}</span>
+          <span className="text-[10px] text-on-surface-variant/60 mr-2">{formatTime(sent_at)}</span>
         </div>
       </div>
       {escalation_required && <EscalationBanner />}
