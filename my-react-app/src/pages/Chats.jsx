@@ -127,12 +127,12 @@ const Chats = () => {
         '4100260584',
         '4100260654'
       ];
-      
+
       const { data, error } = await supabase
         .from('open_po_detail')
         .select('*')
         .in('po_num', posToFetch);
-        
+
       if (!error && data) {
         // Just take the first row per PO for the header
         const uniquePOs = [];
@@ -173,22 +173,20 @@ const Chats = () => {
             ) : poData.map((po) => {
               const isActive = selectedPo?.po_num === po.po_num;
               return (
-                <div 
+                <div
                   key={po.po_num}
                   onClick={() => setSelectedPo(po)}
-                  className={`p-4 rounded-xl cursor-pointer transition-all ${
-                    isActive 
-                      ? 'bg-surface-container-lowest border-l-4 border-primary shadow-sm group' 
+                  className={`p-4 rounded-xl cursor-pointer transition-all ${isActive
+                      ? 'bg-surface-container-lowest border-l-4 border-primary shadow-sm group'
                       : 'hover:bg-surface-container-highest/30 border-l-4 border-transparent'
-                  }`}
+                    }`}
                 >
                   <div className="flex justify-between items-start mb-1">
                     <span className={`text-[10px] font-bold uppercase tracking-widest ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
                       PO-{po.po_num}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                      isActive ? 'bg-error-container text-on-error-container' : 'bg-surface-container-highest text-on-surface-variant'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isActive ? 'bg-error-container text-on-error-container' : 'bg-surface-container-highest text-on-surface-variant'
+                      }`}>
                       {isActive ? 'HIGH RISK' : 'Awaiting'}
                     </span>
                   </div>
@@ -297,30 +295,9 @@ const Chats = () => {
                     <p className="text-[10px] font-bold text-on-surface-variant uppercase">Vendor</p>
                     <p className="text-sm font-bold text-on-surface underline underline-offset-4 decoration-primary/30">{selectedPo.vendor_name}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase">Item Component</p>
-                    <p className="text-sm font-medium text-on-surface">{selectedPo.article_description}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase">Req vs Delivered</p>
-                    <p className="text-sm font-bold text-on-surface">{selectedPo.po_quantity} / {selectedPo.delivered_quantity}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase">Current Status</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="px-2 py-0.5 rounded bg-error-container text-on-error-container text-[10px] font-black uppercase">Manual Intervention</span>
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-outline-variant/10">
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase">Risk Level</p>
-                    <div className="w-full bg-surface-container-high h-1.5 rounded-full mt-2 overflow-hidden">
-                      <div className="bg-error h-full" style={{ width: "85%" }}></div>
-                    </div>
-                    <p className="text-[10px] text-error font-bold mt-1">85% - Severe Supply Chain Impact</p>
-                  </div>
                 </div>
               </div>
-              
+
               <div className="p-6 flex flex-col gap-3">
                 <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Operator Controls</h3>
                 <button className="w-full py-3.5 px-4 bg-surface-container-highest/50 text-on-surface font-bold text-xs rounded-xl flex items-center justify-between group hover:bg-surface-container-highest transition-all">
