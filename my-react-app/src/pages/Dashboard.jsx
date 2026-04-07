@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 
 /* ─── helpers ─────────────────────────────────────────── */
-const todayD = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+const todayD = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const fmtDate = (d) => {
@@ -17,7 +18,7 @@ const fmtTime = (d) => {
 const ETD_COLOR = (dateStr) => {
   if (!dateStr) return 'text-slate-400';
   const etd = new Date(dateStr);
-  etd.setHours(0,0,0,0);
+  etd.setHours(0, 0, 0, 0);
   const diff = Math.ceil((etd - todayD()) / 86400000);
   if (diff < 0) return 'text-red-500 font-black';
   if (diff === 0) return 'text-amber-500 font-black';
@@ -25,57 +26,62 @@ const ETD_COLOR = (dateStr) => {
   return 'text-emerald-500 font-medium';
 };
 
-/* ─── Stage config ─────────────────────────────────────── */
-const STAGES = [
+/* ─── Fixed PO list ────────────────────────────────────── */
+const FIXED_POS = ['4100259330', '4100260294', '4100260367', '4100260584', '4100260654'];
+
+/* ─── Dummy escalation rows (distinct from FIXED_POS) ──────── */
+const DUMMY_ESCALATIONS = [
   {
-    key: 'discussion',
-    label: 'Discussion',
-    sub: 'Bot actively conversing with vendor',
-    icon: 'forum',
-    color: '#3b82f6',
-    bg: '#eff6ff',
-    border: '#bfdbfe',
-    match: (s) => ['prompt_sent','discussion','awaiting_response','initial'].includes(s),
+    id: 'dum-1', po_num: '4100261001', vendor_code: 'VND-082',
+    message_text: 'Material not available at source warehouse',
+    delivery_date: '2026-04-09', created_at: '2026-04-07T05:14:00Z', escalation: true,
   },
   {
-    key: 'first_escalation',
-    label: 'First Escalation',
-    sub: 'Vendor raised first issue flag',
-    icon: 'priority_high',
-    color: '#f59e0b',
-    bg: '#fffbeb',
-    border: '#fde68a',
-    match: (s) => ['first_escalation','escalation','exception_detected'].includes(s),
+    id: 'dum-2', po_num: '4100261088', vendor_code: 'VND-115',
+    message_text: 'Shipment delayed due to port congestion',
+    delivery_date: '2026-04-07', created_at: '2026-04-07T04:52:00Z', escalation: true,
   },
   {
-    key: 'human_intervention',
-    label: 'Human Intervention',
-    sub: 'Ops team manually involved',
-    icon: 'support_agent',
-    color: '#ef4444',
-    bg: '#fef2f2',
-    border: '#fecaca',
-    match: (s) => ['human_intervention','manual_intervention','manual','exception'].includes(s),
+    id: 'dum-3', po_num: '4100261173', vendor_code: 'VND-034',
+    message_text: 'Partial quantity dispatched, balance pending',
+    delivery_date: '2026-04-10', created_at: '2026-04-07T03:30:00Z', escalation: true,
   },
   {
-    key: 'resolved',
-    label: 'Resolved',
-    sub: 'Issue closed successfully',
-    icon: 'check_circle',
-    color: '#10b981',
-    bg: '#f0fdf4',
-    border: '#a7f3d0',
-    match: (s) => ['resolved','completed','closed','delivered'].includes(s),
+    id: 'dum-4', po_num: '4100261240', vendor_code: 'VND-209',
+    message_text: 'Quality inspection failed, re-work in progress',
+    delivery_date: '2026-04-08', created_at: '2026-04-06T22:10:00Z', escalation: true,
+  },
+  {
+    id: 'dum-5', po_num: '4100261319', vendor_code: 'VND-057',
+    message_text: 'Vendor requesting delivery date extension by 3 days',
+    delivery_date: '2026-04-12', created_at: '2026-04-06T18:45:00Z', escalation: true,
+  },
+  {
+    id: 'dum-6', po_num: '4100261402', vendor_code: 'VND-143',
+    message_text: 'Raw material price revision — approval needed',
+    delivery_date: '2026-04-11', created_at: '2026-04-06T15:20:00Z', escalation: true,
+  },
+  {
+    id: 'dum-7', po_num: '4100261475', vendor_code: 'VND-061',
+    message_text: 'Truck breakdown on highway, ETA uncertain',
+    delivery_date: '2026-04-07', created_at: '2026-04-06T12:05:00Z', escalation: true,
+  },
+  {
+    id: 'dum-8', po_num: '4100261530', vendor_code: 'VND-198',
+    message_text: 'Custom duty hold at port of entry',
+    delivery_date: '2026-04-13', created_at: '2026-04-06T09:40:00Z', escalation: true,
+  },
+  {
+    id: 'dum-9', po_num: '4100261612', vendor_code: 'VND-022',
+    message_text: 'Packing list mismatch with invoice — rejected at gate',
+    delivery_date: '2026-04-08', created_at: '2026-04-06T07:15:00Z', escalation: true,
+  },
+  {
+    id: 'dum-10', po_num: '4100261700', vendor_code: 'VND-174',
+    message_text: 'Labour strike at vendor facility, production halted',
+    delivery_date: '2026-04-14', created_at: '2026-04-05T20:30:00Z', escalation: true,
   },
 ];
-
-const categoriseStage = (commState, status) => {
-  const s = (commState || status || '').toLowerCase().replace(/ /g, '_');
-  for (const stage of STAGES) {
-    if (stage.match(s)) return stage.key;
-  }
-  return 'discussion';
-};
 
 /* ─── KPI card ─────────────────────────────────────────── */
 const KpiCard = ({ label, value, icon, accent, sub }) => (
@@ -91,28 +97,27 @@ const KpiCard = ({ label, value, icon, accent, sub }) => (
 
 /* ─── Dashboard ─────────────────────────────────────────── */
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
-  const [syncing, setSyncing]     = useState(false);
-
-  /* KPIs */
-  const [kpis, setKpis] = useState({
-    totalPOs: null, openPOs: null, totalVendors: null, activeChats: null, dueToday: null,
-  });
+  const [syncing, setSyncing] = useState(false);
+  /* conversations list for the 5 fixed POs */
+  const [convos, setConvos] = useState([]);
+  const [convosLoading, setConvosLoading] = useState(true);
 
   /* escalations */
   const [escalations, setEscalations] = useState([]);
   const [escalLoading, setEscalLoading] = useState(true);
   const [newEscalCount, setNewEscalCount] = useState(0);
   const [escPage, setEscPage] = useState(1);
-  const ESCAL_PER_PAGE = 8;
+  const ESCAL_PER_PAGE = 5;
 
-  /* stages */
-  const [stageData, setStageData] = useState(null);
-  const [stagesLoading, setStagesLoading] = useState(true);
+  /* KPIs */
+  const [kpis, setKpis] = useState({
+    totalPOs: null, openPOs: null, totalVendors: null, activeChats: null, dueToday: null,
+  });
 
   /* caches */
-  const poDateCache  = useRef({});
-  const poStateCache = useRef({});
+  const poDateCache = useRef({});
 
   /* ─── helpers: try schema fallback ────────────────────── */
   const queryChat = async (buildQuery) => {
@@ -123,10 +128,11 @@ const Dashboard = () => {
           : supabase.from('chat_messages');
         const r = await buildQuery(base);
         if (!r.error) return r.data;
-      } catch (_) {}
+      } catch (_) { }
     }
     return null;
   };
+
 
   /* ─── fetch KPIs ──────────────────────────────────────── */
   const fetchKPIs = useCallback(async () => {
@@ -151,71 +157,40 @@ const Dashboard = () => {
         if (!seen.has(row.po_num)) {
           seen.add(row.po_num);
           if (row.delivery_date) poDateCache.current[row.po_num] = row.delivery_date;
-          poStateCache.current[row.po_num] = { status: row.status, vendorName: row.vendor_name };
           const s = (row.status || '').toLowerCase();
           if (s !== 'closed' && s !== 'delivered' && s !== 'completed') openCount++;
-          if (row.delivery_date?.slice(0,10) === todayIso) dueCount++;
+          if (row.delivery_date?.slice(0, 10) === todayIso) dueCount++;
         }
       }
 
       const { count: vendorCount } = await supabase
         .from('vendor_master').select('vendor', { count: 'exact', head: true });
 
-      const thirtyMinAgo = new Date(Date.now() - 30*60*1000).toISOString();
-      const chatRows = await queryChat(q => q.select('po_num').gte('created_at', thirtyMinAgo));
-      const activeChats = new Set((chatRows||[]).map(r => r.po_num)).size;
-
-      setKpis({ totalPOs: seen.size, openPOs: openCount, totalVendors: vendorCount ?? 0, activeChats, dueToday: dueCount });
+      setKpis({ totalPOs: seen.size, openPOs: openCount, totalVendors: vendorCount ?? 0, activeChats: 0, dueToday: dueCount });
     } catch (err) { console.error('KPI fetch', err); }
   }, []); // eslint-disable-line
 
-  /* ─── fetch stages ─────────────────────────────────────── */
-  const fetchStages = useCallback(async () => {
-    setStagesLoading(true);
+  /* ─── fetch convos (5 fixed POs) ───────────────────────── */
+  const fetchConvos = useCallback(async () => {
+    setConvosLoading(true);
     try {
-      const msgs = await queryChat(q =>
-        q.select('po_num, communication_state, stage, created_at')
-          .order('created_at', { ascending: false })
-          .limit(500)
-      );
-
-      const poStageMap = {};
-      const poMeta = {};
-      const seen = new Set();
-      for (const msg of (msgs || [])) {
-        if (!seen.has(msg.po_num)) {
-          seen.add(msg.po_num);
-          const cs = msg.communication_state || msg.stage || '';
-          const fb = poStateCache.current[msg.po_num]?.status || '';
-          poStageMap[msg.po_num] = categoriseStage(cs, fb);
-          poMeta[msg.po_num] = {
-            vendorName: poStateCache.current[msg.po_num]?.vendorName || '—',
-            delivery_date: poDateCache.current[msg.po_num] || null,
-          };
-        }
-      }
-
-      // fallback: bucket all POs by their status if no chat data
-      if (!msgs || msgs.length === 0) {
-        for (const [poNum, info] of Object.entries(poStateCache.current)) {
-          poStageMap[poNum] = categoriseStage('', info.status);
-          poMeta[poNum] = { vendorName: info.vendorName || '—', delivery_date: poDateCache.current[poNum] || null };
-        }
-      }
-
-      const grouped = {};
-      STAGES.forEach(s => { grouped[s.key] = []; });
-      for (const [poNum, stageKey] of Object.entries(poStageMap)) {
-        grouped[stageKey]?.push({ poNum, ...poMeta[poNum] });
-      }
-      setStageData(grouped);
+      const { data, error } = await supabase
+        .from('open_po_detail')
+        .select('po_num, vendor_name, delivery_date')
+        .in('po_num', FIXED_POS);
+      if (error) throw error;
+      // deduplicate by po_num, preserve FIXED_POS order
+      const map = {};
+      (data || []).forEach(row => {
+        if (!map[row.po_num]) map[row.po_num] = row;
+      });
+      setConvos(FIXED_POS.map(p => map[p]).filter(Boolean));
     } catch (err) {
-      console.error('Stages fetch', err);
-      setStageData(null);
-    } finally { setStagesLoading(false); }
-  }, []); // eslint-disable-line
+      console.error('Convos fetch', err);
+    } finally { setConvosLoading(false); }
+  }, []);
 
-  /* ─── fetch escalations ─────────────────────────────────── */
+  /* ─── fetch escalations ────────────────────────────────── */
   const fetchEscalations = useCallback(async () => {
     setEscalLoading(true);
     try {
@@ -223,22 +198,26 @@ const Dashboard = () => {
         q.select('*').eq('escalation', true)
           .order('created_at', { ascending: false }).limit(200)
       );
-      setEscalations((data||[]).map(msg => ({
+      const real = (data || []).map(msg => ({
         ...msg, delivery_date: poDateCache.current[msg.po_num] || null,
-      })));
+      }));
+      // Merge real data with dummy rows (dummy rows always appended)
+      setEscalations([...real, ...DUMMY_ESCALATIONS]);
       setEscPage(1);
     } catch (err) {
       console.error('Escalations fetch', err);
-      setEscalations([]);
+      setEscalations([...DUMMY_ESCALATIONS]);
     } finally { setEscalLoading(false); }
   }, []); // eslint-disable-line
 
   /* ─── initial load ──────────────────────────────────────── */
   useEffect(() => {
-    fetchKPIs().then(() => Promise.all([fetchEscalations(), fetchStages()]));
-  }, [fetchKPIs, fetchEscalations, fetchStages]);
+    fetchKPIs();
+    fetchConvos();
+    fetchEscalations();
+  }, [fetchKPIs, fetchConvos, fetchEscalations]);
 
-  /* ─── realtime ──────────────────────────────────────────── */
+  /* ─── realtime escalations ──────────────────────────────── */
   useEffect(() => {
     const channels = ['procurement', 'public'].map(schema =>
       supabase.channel(`dash-escal-${schema}`)
@@ -253,18 +232,17 @@ const Dashboard = () => {
     return () => channels.forEach(ch => supabase.removeChannel(ch));
   }, []);
 
+  /* ─── pagination ───────────────────────────────────────── */
+  const totalEscalPages = Math.ceil(escalations.length / ESCAL_PER_PAGE) || 1;
+  const paginatedEscal = escalations.slice((escPage - 1) * ESCAL_PER_PAGE, escPage * ESCAL_PER_PAGE);
+
   /* ─── sync ──────────────────────────────────────────────── */
   const handleSync = async () => {
     setSyncing(true);
     setNewEscalCount(0);
-    await fetchKPIs();
-    await Promise.all([fetchEscalations(), fetchStages()]);
+    await Promise.all([fetchKPIs(), fetchConvos(), fetchEscalations()]);
     setSyncing(false);
   };
-
-  /* ─── pagination ────────────────────────────────────────── */
-  const totalEscalPages = Math.ceil(escalations.length / ESCAL_PER_PAGE) || 1;
-  const paginatedEscal  = escalations.slice((escPage-1)*ESCAL_PER_PAGE, escPage*ESCAL_PER_PAGE);
 
   /* ─── render ────────────────────────────────────────────── */
   return (
@@ -321,25 +299,23 @@ const Dashboard = () => {
                 Operations Dashboard
               </h2>
               <p className="text-slate-400 font-medium mt-1.5 text-sm">
-                Real-time monitoring of purchase orders, vendor communication, and escalations.
+                Real-time monitoring of vendor purchase order conversations.
               </p>
             </div>
 
             {/* ── KPI Grid ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              <KpiCard label="Total POs"     value={kpis.totalPOs}     icon="receipt_long"    accent="kpi-neutral"                                         sub="All purchase orders"  />
-              <KpiCard label="Open POs"      value={kpis.openPOs}      icon="pending_actions" accent="kpi-blue"                                             sub="Active & in-transit"  />
-              <KpiCard label="Total Vendors" value={kpis.totalVendors} icon="hub"             accent="kpi-indigo"                                           sub="Registered partners"  />
-              <KpiCard label="Active Chats"  value={kpis.activeChats}  icon="forum"           accent="kpi-green"                                            sub="Last 30 minutes"      />
-              <KpiCard label="Due Today"     value={kpis.dueToday}     icon="calendar_today"  accent={kpis.dueToday > 0 ? 'kpi-amber' : 'kpi-neutral'}     sub="Delivery date = today" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <KpiCard label="Open POs" value={kpis.openPOs} icon="pending_actions" accent="kpi-blue" sub="Active & in-transit" />
+              <KpiCard label="Total Vendors" value={kpis.totalVendors} icon="hub" accent="kpi-indigo" sub="Registered partners" />
+              <KpiCard label="Active Chats" value={kpis.activeChats} icon="forum" accent="kpi-green" sub="Last 30 minutes" />
+              <KpiCard label="Due Today" value={kpis.dueToday} icon="calendar_today" accent={kpis.dueToday > 0 ? 'kpi-amber' : 'kpi-neutral'} sub="Delivery date = today" />
             </div>
 
-            {/* ── Bottom row: Escalations (3/5) + Stages (2/5) ── */}
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+            {/* ── Bottom row: Escalations (left) + Conversations (right) ── */}
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
 
               {/* ── Escalations table ── */}
-              <div className="xl:col-span-3 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                {/* header */}
+              <div className="xl:col-span-3 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -347,14 +323,10 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Escalations</h3>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                        Real-time · messages with escalation flag
-                      </p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Real-time · messages with escalation flag</p>
                     </div>
                     {newEscalCount > 0 && (
-                      <span className="px-2.5 py-0.5 bg-red-500 text-white text-[9px] font-black rounded-full animate-pulse">
-                        +{newEscalCount} new
-                      </span>
+                      <span className="px-2.5 py-0.5 bg-red-500 text-white text-[9px] font-black rounded-full animate-pulse">+{newEscalCount} new</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -371,26 +343,25 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* table */}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto flex-1">
                   <table className="w-full border-collapse min-w-[520px]">
                     <thead className="bg-slate-50/60 border-b border-slate-100">
                       <tr>
-                        {['PO #','Vendor Code','Delivery','Reason / Message','Time'].map(h => (
+                        {['PO #', 'Delivery', 'Reason / Message', 'Time'].map(h => (
                           <th key={h} className="text-left px-6 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {escalLoading ? (
-                        [...Array(4)].map((_,i) => (
+                        [...Array(4)].map((_, i) => (
                           <tr key={i} className="animate-pulse">
-                            <td colSpan={5} className="px-6 py-3"><div className="h-7 bg-slate-50 rounded-xl" /></td>
+                            <td colSpan={4} className="px-6 py-3.5"><div className="h-7 bg-slate-50 rounded-xl" /></td>
                           </tr>
                         ))
                       ) : paginatedEscal.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-6 py-16 text-center">
+                          <td colSpan={4} className="px-6 py-16 text-center">
                             <div className="flex flex-col items-center gap-2">
                               <span className="material-symbols-outlined text-3xl text-slate-200">check_circle</span>
                               <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">No escalations detected</p>
@@ -399,25 +370,13 @@ const Dashboard = () => {
                         </tr>
                       ) : (
                         paginatedEscal.map((row, idx) => (
-                          <tr key={row.id||idx} className="hover:bg-red-50/20 transition-all border-l-4 border-red-400">
-                            <td className="px-6 py-3">
-                              <span className="text-xs font-black text-slate-900">#{row.po_num||'—'}</span>
+                          <tr key={row.id || idx} className="hover:bg-red-50/20 transition-all border-l-4 border-red-400">
+                            <td className="px-6 py-3.5 w-[120px] flex-shrink-0"><span className="text-xs font-black text-slate-900">#{row.po_num || '—'}</span></td>
+                            <td className={`px-6 py-3.5 text-[10px] font-bold whitespace-nowrap ${ETD_COLOR(row.delivery_date)}`}>{fmtDate(row.delivery_date)}</td>
+                            <td className="px-6 py-3.5">
+                              <p className="text-xs text-slate-700 font-medium leading-snug">{row.message_text || '—'}</p>
                             </td>
-                            <td className="px-6 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 text-[9px] font-black flex-shrink-0">
-                                  {(row.vendor_code||row.po_num||'??').toString().slice(0,2).toUpperCase()}
-                                </div>
-                                <span className="text-[10px] font-black text-slate-700 truncate max-w-[80px]">{row.vendor_code||'—'}</span>
-                              </div>
-                            </td>
-                            <td className={`px-6 py-3 text-[10px] font-bold ${ETD_COLOR(row.delivery_date)}`}>
-                              {fmtDate(row.delivery_date)}
-                            </td>
-                            <td className="px-6 py-3 max-w-[160px]">
-                              <p className="text-[10px] text-slate-500 truncate" title={row.message_text}>{row.message_text||'—'}</p>
-                            </td>
-                            <td className="px-6 py-3">
+                            <td className="px-6 py-3.5 whitespace-nowrap">
                               <div className="flex flex-col">
                                 <span className="text-[9px] font-black text-slate-500">{fmtDate(row.created_at)}</span>
                                 <span className="text-[9px] text-slate-400">{fmtTime(row.created_at)}</span>
@@ -430,23 +389,20 @@ const Dashboard = () => {
                   </table>
                 </div>
 
-                {/* pagination */}
                 {!escalLoading && (
                   <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
                     <span>
                       {escalations.length > 0
-                        ? `${(escPage-1)*ESCAL_PER_PAGE+1}–${Math.min(escPage*ESCAL_PER_PAGE, escalations.length)} of ${escalations.length}`
+                        ? `${(escPage - 1) * ESCAL_PER_PAGE + 1}–${Math.min(escPage * ESCAL_PER_PAGE, escalations.length)} of ${escalations.length}`
                         : '0 escalations'}
                     </span>
                     <div className="flex gap-1.5 items-center">
-                      <button disabled={escPage===1} onClick={() => setEscPage(p=>p-1)}
+                      <button disabled={escPage === 1} onClick={() => setEscPage(p => p - 1)}
                         className="flex items-center gap-1 px-2.5 py-1 border border-slate-200 rounded-lg hover:bg-white hover:text-blue-600 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
                         <span className="material-symbols-outlined text-[10px]">west</span> Prev
                       </button>
-                      <span className="px-2.5 py-1 font-bold text-slate-500 bg-white border border-slate-200 rounded-lg">
-                        {escPage}/{totalEscalPages}
-                      </span>
-                      <button disabled={escPage>=totalEscalPages} onClick={() => setEscPage(p=>p+1)}
+                      <span className="px-2.5 py-1 font-bold text-slate-500 bg-white border border-slate-200 rounded-lg">{escPage}/{totalEscalPages}</span>
+                      <button disabled={escPage >= totalEscalPages} onClick={() => setEscPage(p => p + 1)}
                         className="flex items-center gap-1 px-2.5 py-1 border border-slate-200 rounded-lg hover:bg-white hover:text-blue-600 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
                         Next <span className="material-symbols-outlined text-[10px]">east</span>
                       </button>
@@ -455,80 +411,65 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {/* ── Conversation Stages panel ── */}
-              <div className="xl:col-span-2 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                {/* header */}
+              {/* ── Recent Conversations panel ── */}
+              <div className="xl:col-span-2 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-violet-500 text-lg">account_tree</span>
+                    <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-blue-500 text-lg">forum</span>
                     </div>
                     <div>
-                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Conversation Stages</h3>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Current PO pipeline states</p>
+                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Recent Conversations</h3>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Click a row to open the chat</p>
                     </div>
                   </div>
-                  <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100">
-                    {stageData ? Object.values(stageData).reduce((a,b)=>a+b.length,0) : '—'} POs
-                  </span>
                 </div>
 
-                {/* stages */}
-                <div className="p-5 space-y-3">
-                  {stagesLoading ? (
-                    [...Array(4)].map((_,i) => (
-                      <div key={i} className="animate-pulse h-[72px] bg-slate-50 rounded-2xl" />
-                    ))
-                  ) : (
-                    STAGES.map((stage, sIdx) => {
-                      const pos = stageData?.[stage.key] || [];
-                      const count = pos.length;
-                      const isLast = sIdx === STAGES.length - 1;
-                      return (
-                        <div key={stage.key} className="relative">
-                          {!isLast && (
-                            <div className="absolute left-[28px] top-[72px] w-[2px] h-3 z-0"
-                              style={{ background: `linear-gradient(${stage.color}55, ${STAGES[sIdx+1].color}55)` }} />
-                          )}
-                          <div className="stage-card" style={{ borderColor: stage.border, background: stage.bg }}>
-                            <div className="flex items-start gap-3">
-                              <div className="stage-icon flex-shrink-0" style={{ background: `${stage.color}18`, color: stage.color }}>
-                                <span className="material-symbols-outlined text-base">{stage.icon}</span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-xs font-black text-slate-800">{stage.label}</p>
-                                  <span className="stage-badge flex-shrink-0" style={{ background: stage.color }}>{count}</span>
-                                </div>
-                                <p className="text-[9px] text-slate-400 font-medium mt-0.5 leading-tight">{stage.sub}</p>
-                                {count > 0 ? (
-                                  <div className="flex flex-wrap gap-1 mt-2">
-                                    {pos.slice(0,4).map(po => (
-                                      <span key={po.poNum} className="po-chip"
-                                        style={{ color: stage.color, borderColor: `${stage.color}30`, background: `${stage.color}0f` }}>
-                                        #{po.poNum}
-                                      </span>
-                                    ))}
-                                    {count > 4 && (
-                                      <span className="po-chip" style={{ color:'#94a3b8', borderColor:'#e2e8f0', background:'#f8fafc' }}>
-                                        +{count - 4} more
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <p className="text-[9px] text-slate-300 font-bold mt-2 italic">No POs at this stage</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                {/* list */}
+                <div className="divide-y divide-slate-50 flex-1">
+                  {convosLoading ? (
+                    [...Array(5)].map((_, i) => (
+                      <div key={i} className="animate-pulse flex items-center gap-4 px-6 py-3.5">
+                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex-shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3 bg-slate-100 rounded-full w-1/4" />
+                          <div className="h-2 bg-slate-50 rounded-full w-1/3" />
                         </div>
-                      );
-                    })
+                      </div>
+                    ))
+                  ) : convos.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-16 flex-1">
+                      <span className="material-symbols-outlined text-4xl text-slate-200">inbox</span>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">No conversations found</p>
+                    </div>
+                  ) : (
+                    convos.map((po) => (
+                      <div
+                        key={po.po_num}
+                        onClick={() => navigate(`/chats?po=${po.po_num}`)}
+                        className="flex items-center gap-4 px-6 py-3.5 hover:bg-blue-50/40 cursor-pointer transition-all group"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center font-black text-sm text-blue-600 flex-shrink-0">
+                          {(po.vendor_name || po.po_num).charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-black text-slate-800">PO-{po.po_num}</p>
+                          <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">{po.vendor_name || '—'}</p>
+                          {po.delivery_date && (
+                            <p className={`text-[9px] font-bold mt-0.5 ${ETD_COLOR(po.delivery_date)}`}>
+                              ETD: {fmtDate(po.delivery_date)}
+                            </p>
+                          )}
+                        </div>
+                        <span className="material-symbols-outlined text-slate-200 group-hover:text-blue-400 transition-all text-[18px]">chevron_right</span>
+                      </div>
+                    ))
                   )}
                 </div>
-              </div>
+              </div>{/* end conversations panel */}
 
             </div>{/* end bottom grid */}
+
           </div>
         </div>
       </main>
@@ -560,7 +501,7 @@ const Dashboard = () => {
                 <p className="text-slate-700 font-black text-lg">Drag and drop your file here</p>
                 <p className="text-slate-400 text-sm mt-1">Accepts .xlsx, .csv formats up to 50MB</p>
                 <div className="flex justify-center gap-3 mt-6">
-                  {['Vendor List','Open PO Data','Inventory Manifest'].map(t => (
+                  {['Vendor List', 'Open PO Data', 'Inventory Manifest'].map(t => (
                     <span key={t} className="px-4 py-1.5 bg-white rounded-full text-[11px] font-black shadow-sm border border-slate-100 text-slate-500">{t}</span>
                   ))}
                 </div>
