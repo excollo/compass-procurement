@@ -226,7 +226,7 @@ const Vendors = () => {
                                                     <span className="material-symbols-outlined text-xl">call</span>
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Hotline</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Contact</p>
                                                     <p className="text-sm font-black text-slate-900 dark:text-white mt-1">{selectedVendor.contact_number || ''}</p>
                                                 </div>
                                             </div>
@@ -235,7 +235,7 @@ const Vendors = () => {
                                                     <span className="material-symbols-outlined text-xl">location_on</span>
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Nexus Location</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Location</p>
                                                     <p className="text-sm font-black text-slate-900 dark:text-white mt-1">{selectedVendor.city || 'Not Specified'}</p>
                                                 </div>
                                             </div>
@@ -244,7 +244,7 @@ const Vendors = () => {
                                                     <span className="material-symbols-outlined text-xl">alternate_email</span>
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Enterprise Inbound</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Email</p>
                                                     <p className="text-sm font-black text-primary hover:underline cursor-pointer mt-1">{selectedVendor.email_address_1 || 'No Registry'}</p>
                                                 </div>
                                             </div>
