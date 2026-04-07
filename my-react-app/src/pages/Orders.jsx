@@ -7,8 +7,24 @@ const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
   const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+  const DD = String(d.getDate()).padStart(2, '0');
+  const MM = String(d.getMonth() + 1).padStart(2, '0');
+  const YYYY = d.getFullYear();
+  return `${DD}-${MM}-${YYYY}`;
 };
+
+const COMM_STATES = [
+  { value: 'pending', label: 'Pending', bg: 'bg-[#F1F5F9]', text: 'text-[#64748B]' },
+  { value: 'contacted', label: 'Contacted', bg: 'bg-[#DBEAFE]', text: 'text-[#1D4ED8]' },
+  { value: 'confirmed', label: 'Confirmed', bg: 'bg-[#DCFCE7]', text: 'text-[#15803D]' },
+  { value: 'at_risk', label: 'At Risk', bg: 'bg-[#FEF9C3]', text: 'text-[#A16207]' },
+  { value: 'escalated', label: 'Escalated', bg: 'bg-[#FFEDD5]', text: 'text-[#C2410C]' },
+  { value: 'human_controlled', label: 'Human Controlled', bg: 'bg-[#FEE2E2]', text: 'text-[#B91C1C]' },
+  { value: 'resolved', label: 'Resolved', bg: 'bg-[#CCFBF1]', text: 'text-[#0F766E]' },
+  { value: 'unresponsive', label: 'Unresponsive', bg: 'bg-[#FCE7F3]', text: 'text-[#9D174D]' }
+];
+
+const getCommState = (val) => COMM_STATES.find(s => s.value === (val || '').toLowerCase()) || COMM_STATES[0];
 
 const Orders = () => {
   const location = useLocation();
@@ -26,6 +42,15 @@ const Orders = () => {
   const [filterVendor, setFilterVendor] = useState('All Vendors');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterCommStates, setFilterCommStates] = useState([]);
+  const [commDropdownOpen, setCommDropdownOpen] = useState(false);
+
+  const toggleCommState = (val) => {
+    setFilterCommStates(prev => 
+      prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]
+    );
+    setCurrentPage(1);
+  };
 
   // Effect to handle incoming vendor filter from navigation state
   useEffect(() => {
@@ -67,11 +92,18 @@ const Orders = () => {
         }
       }
 
+      const RANDOM_STATES = ['pending','contacted','confirmed','at_risk','escalated','human_controlled','resolved','unresponsive'];
+
       const uniquePOs = [];
       const seenPOs = new Set();
       for (const item of allData) {
         if (!seenPOs.has(item.po_num)) {
           seenPOs.add(item.po_num);
+          // Seed random by po_num so state is stable per row
+          if (!item.communication_state) {
+            const seed = String(item.po_num).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+            item.communication_state = RANDOM_STATES[seed % RANDOM_STATES.length];
+          }
           uniquePOs.push(item);
         }
       }
@@ -100,7 +132,10 @@ const Orders = () => {
       matchesDate = matchesDate && (new Date(po.po_date) <= new Date(filterDateTo));
     }
 
-    return matchesSearch && matchesVendor && matchesDate;
+    const commStateVal = (po.communication_state || 'pending').toLowerCase();
+    const matchesCommState = filterCommStates.length === 0 || filterCommStates.includes(commStateVal);
+
+    return matchesSearch && matchesVendor && matchesDate && matchesCommState;
   });
 
   const today = new Date();
@@ -191,23 +226,53 @@ const Orders = () => {
             </div>
 
             {/* Filters */}
-            <div className="grid grid-cols-5 gap-4 mb-8 bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+            <div className="grid grid-cols-6 gap-4 mb-8 bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm relative">
               <div className="space-y-1.5 col-span-1">
                 <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-label">Search Partners</label>
                 <select className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-3 px-4 focus:ring-0 cursor-pointer" value={filterVendor} onChange={(e) => {setFilterVendor(e.target.value); setCurrentPage(1);}}>
                   {vendorsList.map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
+              <div className="space-y-1.5 col-span-1 relative">
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-label">Communication State</label>
+                <div 
+                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-3 px-4 focus:ring-0 cursor-pointer flex justify-between items-center h-[40px]"
+                    onClick={() => setCommDropdownOpen(!commDropdownOpen)}
+                >
+                    <span className="truncate">
+                        {filterCommStates.length === 0 ? 'All States' : `${filterCommStates.length} Selected`}
+                    </span>
+                    <span className="material-symbols-outlined text-[16px] text-slate-400">arrow_drop_down</span>
+                </div>
+                {commDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setCommDropdownOpen(false)}></div>
+                      <div className="absolute top-[100%] mt-2 left-0 w-56 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-xl rounded-xl p-2 z-50 max-h-64 overflow-y-auto">
+                          {COMM_STATES.map(s => (
+                              <label key={s.value} className="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer rounded-lg">
+                                  <input 
+                                      type="checkbox" 
+                                      checked={filterCommStates.includes(s.value)}
+                                      onChange={() => toggleCommState(s.value)}
+                                      className="rounded text-primary focus:ring-0 border-slate-300 w-4 h-4"
+                                  />
+                                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{s.label}</span>
+                              </label>
+                          ))}
+                      </div>
+                    </>
+                )}
+              </div>
               <div className="space-y-1.5 col-span-1">
                 <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-label">Timeline Start</label>
-                <input className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-3 px-4 focus:ring-0" type="date" value={filterDateFrom} onChange={(e) => {setFilterDateFrom(e.target.value); setCurrentPage(1);}} />
+                <input className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-3 px-4 focus:ring-0 h-[40px]" type="date" value={filterDateFrom} onChange={(e) => {setFilterDateFrom(e.target.value); setCurrentPage(1);}} />
               </div>
               <div className="space-y-1.5 col-span-1">
                 <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-label">Timeline End</label>
-                <input className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-3 px-4 focus:ring-0" type="date" value={filterDateTo} onChange={(e) => {setFilterDateTo(e.target.value); setCurrentPage(1);}} />
+                <input className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-3 px-4 focus:ring-0 h-[40px]" type="date" value={filterDateTo} onChange={(e) => {setFilterDateTo(e.target.value); setCurrentPage(1);}} />
               </div>
               <div className="flex items-end col-span-2">
-                <button onClick={() => {setFilterVendor('All Vendors'); setFilterDateFrom(''); setFilterDateTo(''); setSearchTerm(''); setCurrentPage(1);}} className="w-full h-[46px] bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all">Reset Analysis Filters</button>
+                <button onClick={() => {setFilterVendor('All Vendors'); setFilterDateFrom(''); setFilterDateTo(''); setSearchTerm(''); setFilterCommStates([]); setCurrentPage(1); setCommDropdownOpen(false);}} className="w-full h-[40px] bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all">Reset Analysis Filters</button>
               </div>
             </div>
 
@@ -256,10 +321,7 @@ const Orders = () => {
                       if (statusStr.toLowerCase() === 'confirmed') statusBadge = "bg-emerald-50 text-emerald-600 border-emerald-100";
                       else if (statusStr.toLowerCase() === 'at_risk' || statusStr.toLowerCase() === 'at-risk') statusBadge = "bg-amber-50 text-amber-600 border-amber-100";
                       
-                      const commStr = po.communication_state || 'Pending';
-                      let commBadge = "bg-slate-100 text-slate-500";
-                      if (commStr.toLowerCase() === 'prompt_sent' || commStr.toLowerCase() === 'awaiting_response') commBadge = "bg-blue-50 text-blue-600 border-blue-100";
-                      else if (commStr.toLowerCase() === 'exception_detected' || commStr.toLowerCase() === 'exception') commBadge = "bg-red-50 text-red-600 border-red-100";
+                      const cState = getCommState(po.communication_state);
 
                       return (
                         <tr 
@@ -276,22 +338,12 @@ const Orders = () => {
                                    #{po.po_num}
                                </Link>
                           </td>
-                          {/* <td className="px-6 py-4 text-xs font-black text-slate-600 dark:text-slate-300">
-                             {po.po_item}
-                          </td> */}
                           <td className="px-6 py-4">
                             <div className="flex flex-col">
                               <span className="text-xs font-black text-slate-700 dark:text-slate-200 tracking-tight">{po.vendor_name}</span>
                               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Verified Partner</span>
                             </div>
                           </td>
-                          {/* <td className="px-6 py-4">
-                             <p className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate max-w-[200px]" title={po.article_description}>
-                               {po.article_description}
-                             </p>
-                          </td>
-                          <td className="px-6 py-4 text-right text-xs font-black text-slate-700 dark:text-slate-300">{po.po_quantity || 0}</td>
-                          <td className="px-6 py-4 text-right text-xs font-black text-emerald-500">{po.delivered_quantity || 0}</td> */}
                           <td className={`px-6 py-4 text-xs italic ${etdColor}`}>{formatDate(po.delivery_date) || 'TBD'}</td>
                           <td className="px-6 py-4 text-center">
                               <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${statusBadge}`}>
@@ -299,8 +351,8 @@ const Orders = () => {
                               </span>
                           </td>
                           <td className="px-6 py-4 text-center">
-                              <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${commBadge}`}>
-                                  {commStr.replace('_', ' ')}
+                              <span className={`px-2.5 py-1 rounded-[6px] text-[11px] font-medium inline-flex items-center justify-center whitespace-nowrap ${cState.bg} ${cState.text}`}>
+                                  {cState.label}
                               </span>
                           </td>
                         </tr>
