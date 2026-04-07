@@ -73,7 +73,7 @@ const Vendors = () => {
                 {/* Header */}
                 <header className="flex justify-between items-center h-16 px-8 w-full bg-white dark:bg-slate-900 border-b border-outline-variant/10 shadow-sm z-40">
                     <div className="flex items-center gap-8">
-                        <h1 className="text-lg font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline uppercase">Enterprise Procurement</h1>
+                        <h1 className="text-lg font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline uppercase">Procurement Ops</h1>
                         <div className="relative group">
                             <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 group-focus-within:text-primary transition-colors">
                                 <span className="material-symbols-outlined text-sm">search</span>
