@@ -9,7 +9,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const fmtDate = (d) => {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 };
 const fmtTime = (d) => {
   if (!d) return '';
