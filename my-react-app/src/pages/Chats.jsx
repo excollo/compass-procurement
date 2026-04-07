@@ -15,12 +15,12 @@ const formatTime = (timestamp) => {
   });
 };
 
-// Format delivery date as DD/MM/YYYY
+// Format delivery date as DD-MM-YYYY
 const formatDeliveryDate = (dateStr) => {
   if (!dateStr) return 'N/A';
   const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/');
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 };
 
 // ── Compass opening message (pinned top of every chat) ──────────────────────
@@ -353,7 +353,7 @@ const Chats = () => {
                   <div>
                     <p className="text-[10px] font-bold text-on-surface-variant uppercase">Delivery Date</p>
                     <p className="text-sm font-medium text-on-surface">
-                      {selectedPo.delivery_date ? new Date(selectedPo.delivery_date).toLocaleDateString() : 'N/A'}
+                      {formatDeliveryDate(selectedPo.delivery_date)}
                     </p>
                   </div>
                 </div>
