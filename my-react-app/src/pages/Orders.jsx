@@ -3,6 +3,13 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+};
+
 const Orders = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -285,7 +292,7 @@ const Orders = () => {
                           </td>
                           <td className="px-6 py-4 text-right text-xs font-black text-slate-700 dark:text-slate-300">{po.po_quantity || 0}</td>
                           <td className="px-6 py-4 text-right text-xs font-black text-emerald-500">{po.delivered_quantity || 0}</td> */}
-                          <td className={`px-6 py-4 text-xs italic ${etdColor}`}>{po.delivery_date || 'TBD'}</td>
+                          <td className={`px-6 py-4 text-xs italic ${etdColor}`}>{formatDate(po.delivery_date) || 'TBD'}</td>
                           <td className="px-6 py-4 text-center">
                               <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${statusBadge}`}>
                                   {statusStr.replace('_', ' ')}
