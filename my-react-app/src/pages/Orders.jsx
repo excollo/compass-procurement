@@ -142,7 +142,7 @@ const Orders = () => {
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="flex justify-between items-center h-16 px-8 w-full bg-white dark:bg-slate-900 border-b border-outline-variant/10 shadow-sm z-10">
           <div className="flex items-center gap-8">
-            <h1 className="text-lg font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline uppercase leading-none">Enterprise Procurement</h1>
+            <h1 className="text-lg font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline uppercase leading-none">Procurement Ops</h1>
             <div className="relative group">
               <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">
                 <span className="material-symbols-outlined text-sm transition-colors group-focus-within:text-primary">search</span>
