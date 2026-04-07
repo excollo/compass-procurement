@@ -107,21 +107,21 @@ const Vendors = () => {
                             {/* Stats */}
                             <div className="grid grid-cols-4 gap-6 mb-8">
                                 {[
-                                    { label: 'Total Partnerships', value: vendors.length, icon: 'hub', color: 'bg-blue-500' },
-                                    { label: 'Active Status', value: vendors.filter(v => v.status === 'Active').length || vendors.length, icon: 'check_circle', color: 'bg-emerald-500' },
-                                    { label: 'MSMED Registered', value: vendors.filter(v => isMSMERegistered(v.msmed_status)).length || 0, icon: 'verified', color: 'bg-indigo-500' },
-                                    { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || 0, icon: 'public', color: 'bg-amber-500' },
+                                    { label: 'Total Partnerships', value: vendors.length, icon: 'hub', colorClass: 'text-blue-500', sub: 'Vendor records' },
+                                    { label: 'Active Status', value: vendors.filter(v => v.status === 'Active').length || vendors.length, icon: 'check_circle', colorClass: 'text-emerald-500', sub: 'Verified active' },
+                                    { label: 'MSMED Registered', value: vendors.filter(v => isMSMERegistered(v.msmed_status)).length || 0, icon: 'verified', colorClass: 'text-indigo-500', sub: 'Registered entities' },
+                                    { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || 0, icon: 'public', colorClass: 'text-amber-500', sub: 'Unique locations' },
                                 ].map((stat, i) => (
-                                    <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all cursor-default overflow-hidden relative group">
-                                        <div className={`absolute top-0 right-0 w-24 h-24 ${stat.color} opacity-[0.03] rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-110`}></div>
-                                        <div className="relative z-10">
-                                            <div className={`w-12 h-12 rounded-xl ${stat.color} bg-opacity-10 text-${stat.color.split('-')[1]}-600 dark:text-${stat.color.split('-')[1]}-400 flex items-center justify-center mb-4`}>
-                                                <span className="material-symbols-outlined text-2xl">{stat.icon}</span>
-                                            </div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{stat.label}</p>
-                                            <h3 className="text-3xl font-black text-slate-900 dark:text-white mt-1 leading-none">
-                                                {loading ? '...' : stat.value}
+                                    <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between h-[120px] hover:-translate-y-0.5 hover:shadow-md transition-all cursor-default">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`material-symbols-outlined text-[18px] ${stat.colorClass}`}>{stat.icon}</span>
+                                            <span className="text-sm font-semibold text-slate-500">{stat.label}</span>
+                                        </div>
+                                        <div>
+                                            <h3 className={`text-[32px] font-black leading-none ${stat.colorClass}`}>
+                                                {loading ? <span className="inline-block w-10 h-6 rounded-lg bg-slate-100 animate-pulse" /> : stat.value}
                                             </h3>
+                                            <p className="text-[13px] text-slate-500 mt-1">{stat.sub}</p>
                                         </div>
                                     </div>
                                 ))}
