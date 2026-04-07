@@ -3,6 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+};
+
 const OrderDetail = () => {
     const { poNum } = useParams();
     const navigate = useNavigate();
@@ -120,8 +127,8 @@ const OrderDetail = () => {
                             </span>
                         </div>
                         <div className="text-right">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Document Date: <span className="text-slate-900 dark:text-white ml-2">{header.po_date || 'N/A'}</span></p>
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Delivery Sync: <span className="text-emerald-500 ml-2">{header.delivery_date || 'N/A'}</span></p>
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Document Date: <span className="text-slate-900 dark:text-white ml-2">{formatDate(header.po_date)}</span></p>
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Delivery Sync: <span className="text-emerald-500 ml-2">{formatDate(header.delivery_date)}</span></p>
                         </div>
                     </div>
                 </header>
@@ -155,7 +162,7 @@ const OrderDetail = () => {
                                     <p className="text-xs font-bold text-slate-400">Unit ID: {header.unit || 'N/A'}</p>
                                 </div>
                                 <div className="absolute bottom-6 right-8 text-right">
-                                     <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest underline decoration-2 underline-offset-4">{header.delivery_date}</p>
+                                     <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest underline decoration-2 underline-offset-4">{formatDate(header.delivery_date)}</p>
                                 </div>
                             </div>
                         </div>
@@ -173,7 +180,7 @@ const OrderDetail = () => {
                             <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm flex flex-col justify-center items-center">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Delivery Date</p>
                                 <h3 className={`text-2xl font-black leading-none py-2 ${daysDiff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                    {header?.delivery_date ? header.delivery_date.split(' ')[0] : 'N/A'}
+                                    {formatDate(header?.delivery_date)}
                                 </h3>
                             </div>
 
