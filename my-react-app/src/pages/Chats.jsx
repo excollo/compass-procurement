@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 import useChatMessages from '../hooks/useChatMessages';
@@ -151,6 +152,7 @@ const Chats = () => {
   const [selectedPo, setSelectedPo] = useState(null);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
+  const [searchParams] = useSearchParams();
 
   // Fetch chat messages for selected PO using the custom hook
   const {
@@ -192,15 +194,17 @@ const Chats = () => {
           }
         });
         setPoData(uniquePOs);
-        if (uniquePOs.length > 0) {
-          setSelectedPo(uniquePOs[0]);
-        }
+
+        // If coming from Dashboard with ?po=XXXX, open that PO
+        const requestedPo = searchParams.get('po');
+        const match = requestedPo && uniquePOs.find(p => p.po_num === requestedPo);
+        setSelectedPo(match || (uniquePOs.length > 0 ? uniquePOs[0] : null));
       }
       setLoading(false);
     };
 
     fetchPOData();
-  }, []);
+  }, [searchParams]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background max-h-screen">
@@ -225,8 +229,8 @@ const Chats = () => {
                   key={po.po_num}
                   onClick={() => setSelectedPo(po)}
                   className={`p-4 rounded-xl cursor-pointer transition-all ${isActive
-                      ? 'bg-surface-container-lowest border-l-4 border-primary shadow-sm group'
-                      : 'hover:bg-surface-container-highest/30 border-l-4 border-transparent'
+                    ? 'bg-surface-container-lowest border-l-4 border-primary shadow-sm group'
+                    : 'hover:bg-surface-container-highest/30 border-l-4 border-transparent'
                     }`}
                 >
                   <div className="flex justify-between items-start mb-1">
