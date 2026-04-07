@@ -15,6 +15,28 @@ const fmtTime = (d) => {
   if (!d) return '';
   return new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 };
+
+const getCategory = (msg) => {
+  if (!msg) return 'Operation';
+  const text = msg.toLowerCase();
+  if (text.match(/delay|late|postpone|strike|halt/)) return 'Delay';
+  if (text.match(/short|missing|quantity|stock|partial/)) return 'Shortage';
+  if (text.match(/quality|damage|broken|poor|reject|defective/)) return 'Quality';
+  if (text.match(/price|cost|invoice|payment|commercial|fee/)) return 'Commercial';
+  return 'Operation';
+};
+
+const CategoryBadge = ({ msg }) => {
+  const cat = getCategory(msg);
+  let styles = "bg-slate-100 text-slate-600 border-slate-200";
+  if (cat === 'Delay') styles = "bg-amber-50 text-amber-600 border-amber-200";
+  else if (cat === 'Shortage') styles = "bg-orange-50 text-orange-600 border-orange-200";
+  else if (cat === 'Quality') styles = "bg-purple-50 text-purple-600 border-purple-200";
+  else if (cat === 'Commercial') styles = "bg-emerald-50 text-emerald-600 border-emerald-200";
+  else if (cat === 'Operation') styles = "bg-blue-50 text-blue-600 border-blue-200";
+
+  return <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border ${styles}`}>{cat}</span>;
+};
 const ETD_COLOR = (dateStr) => {
   if (!dateStr) return 'text-slate-400';
   const etd = new Date(dateStr);
@@ -83,15 +105,42 @@ const DUMMY_ESCALATIONS = [
   },
 ];
 
-/* ─── KPI card ─────────────────────────────────────────── */
-const KpiCard = ({ label, value, icon, accent, sub }) => (
-  <div className={`db-kpi-card ${accent}`}>
-    <div className="db-kpi-icon">
-      <span className="material-symbols-outlined">{icon}</span>
+/* ─── KPI cards ─────────────────────────────────────────── */
+
+const VendorKpiCard = ({ value }) => (
+  <div className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-slate-100 flex flex-col justify-between h-[120px]">
+    <div className="flex items-center gap-2">
+      <span className="material-symbols-outlined text-[18px] text-emerald-500">group</span>
+      <span className="text-sm font-semibold text-slate-500">Vendors</span>
     </div>
-    <p className="db-kpi-label">{label}</p>
-    <h3 className="db-kpi-value">{value === null ? <span className="db-kpi-loading" /> : value}</h3>
-    {sub && <p className="db-kpi-sub">{sub}</p>}
+    <div>
+      <div className="flex items-baseline">
+        <h3 className="text-[32px] font-black text-slate-900 leading-none">
+          {value === null ? '-' : value}
+        </h3>
+        <span className="text-[20px] font-medium text-slate-400 ml-0.5">
+          /{value === null ? '-' : value}
+        </span>
+      </div>
+      <p className="text-[13px] text-slate-500 mt-1">Responding</p>
+    </div>
+  </div>
+);
+
+const MetricCard = ({ icon, label, value, sub, colorClass }) => (
+  <div className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-slate-100 flex flex-col justify-between h-[120px]">
+    <div className="flex items-center gap-2">
+      <span className={`material-symbols-outlined text-[18px] ${colorClass}`}>{icon}</span>
+      <span className="text-sm font-semibold text-slate-500">{label}</span>
+    </div>
+    <div>
+      <div className="flex items-baseline">
+        <h3 className={`text-[32px] font-black leading-none ${colorClass}`}>
+          {value === null ? '-' : value}
+        </h3>
+      </div>
+      <p className="text-[13px] text-slate-500 mt-1">{sub}</p>
+    </div>
   </div>
 );
 
@@ -113,7 +162,12 @@ const Dashboard = () => {
 
   /* KPIs */
   const [kpis, setKpis] = useState({
-    totalPOs: null, openPOs: null, totalVendors: null, activeChats: null, dueToday: null,
+    totalPOs: null,
+    openPOs: null,
+    totalVendors: null,
+    activeChats: null,
+    dueToday: null,
+    overdue: null,
   });
 
   /* caches */
@@ -152,13 +206,20 @@ const Dashboard = () => {
       }
 
       const seen = new Set();
-      let openCount = 0, dueCount = 0;
+      let openCount = 0, dueCount = 0, overdueCount = 0;
+      const tDate = todayD();
       for (const row of allPOData) {
         if (!seen.has(row.po_num)) {
           seen.add(row.po_num);
           if (row.delivery_date) poDateCache.current[row.po_num] = row.delivery_date;
           const s = (row.status || '').toLowerCase();
-          if (s !== 'closed' && s !== 'delivered' && s !== 'completed') openCount++;
+          if (s !== 'closed' && s !== 'delivered' && s !== 'completed') {
+            openCount++;
+            if (row.delivery_date) {
+               const etd = new Date(row.delivery_date);
+               if (etd < tDate) overdueCount++;
+            }
+          }
           if (row.delivery_date?.slice(0, 10) === todayIso) dueCount++;
         }
       }
@@ -166,7 +227,7 @@ const Dashboard = () => {
       const { count: vendorCount } = await supabase
         .from('vendor_master').select('vendor', { count: 'exact', head: true });
 
-      setKpis({ totalPOs: seen.size, openPOs: openCount, totalVendors: vendorCount ?? 0, activeChats: 0, dueToday: dueCount });
+      setKpis({ totalPOs: seen.size, openPOs: openCount, totalVendors: vendorCount ?? 0, activeChats: 0, dueToday: dueCount, overdue: overdueCount });
     } catch (err) { console.error('KPI fetch', err); }
   }, []); // eslint-disable-line
 
@@ -304,11 +365,12 @@ const Dashboard = () => {
             </div>
 
             {/* ── KPI Grid ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              <KpiCard label="Open POs" value={kpis.openPOs} icon="pending_actions" accent="kpi-blue" sub="Active & in-transit" />
-              <KpiCard label="Total Vendors" value={kpis.totalVendors} icon="hub" accent="kpi-indigo" sub="Registered partners" />
-              <KpiCard label="Active Chats" value={kpis.activeChats} icon="forum" accent="kpi-green" sub="Last 30 minutes" />
-              <KpiCard label="Due Today" value={kpis.dueToday} icon="calendar_today" accent={kpis.dueToday > 0 ? 'kpi-amber' : 'kpi-neutral'} sub="Delivery date = today" />
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+              <VendorKpiCard value={kpis.totalVendors} />
+              <MetricCard label="Critical" value={escalations.length} icon="warning" sub="Escalations" colorClass="text-red-500" />
+              <MetricCard label="Overdue" value={kpis.overdue} icon="inventory_2" sub="Late POs" colorClass="text-red-500" />
+              <MetricCard label="Active Chats" value={kpis.activeChats} icon="forum" sub="Last 30 minutes" colorClass="text-emerald-500" />
+              <MetricCard label="Due Today" value={kpis.dueToday} icon="calendar_today" sub="Delivery date = today" colorClass={kpis.dueToday > 0 ? 'text-amber-500' : 'text-slate-500'} />
             </div>
 
             {/* ── Bottom row: Escalations (left) + Conversations (right) ── */}
@@ -347,7 +409,7 @@ const Dashboard = () => {
                   <table className="w-full border-collapse min-w-[520px]">
                     <thead className="bg-slate-50/60 border-b border-slate-100">
                       <tr>
-                        {['PO #', 'Delivery', 'Reason / Message', 'Time'].map(h => (
+                        {['PO #', 'Delivery', 'Reason / Message', 'Category'].map(h => (
                           <th key={h} className="text-left px-6 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400">{h}</th>
                         ))}
                       </tr>
@@ -377,10 +439,7 @@ const Dashboard = () => {
                               <p className="text-xs text-slate-700 font-medium leading-snug">{row.message_text || '—'}</p>
                             </td>
                             <td className="px-6 py-3.5 whitespace-nowrap">
-                              <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-slate-500">{fmtDate(row.created_at)}</span>
-                                <span className="text-[9px] text-slate-400">{fmtTime(row.created_at)}</span>
-                              </div>
+                              <CategoryBadge msg={row.message_text} />
                             </td>
                           </tr>
                         ))
