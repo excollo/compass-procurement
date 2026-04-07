@@ -14,6 +14,54 @@ const formatTime = (timestamp) => {
   });
 };
 
+// Format delivery date as DD/MM/YYYY
+const formatDeliveryDate = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/');
+};
+
+// ── Compass opening message (pinned top of every chat) ──────────────────────
+const CompassOpeningMessage = ({ po }) => {
+  if (!po) return null;
+  const deliveryDate = formatDeliveryDate(po.delivery_date);
+  return (
+    <div className="compass-opening-wrap">
+      {/* Compass brand row */}
+      <div className="compass-opening-inner">
+        {/* pin badge */}
+        <div className="compass-pin-badge">
+          <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>push_pin</span>
+          Compass · Opening Message
+        </div>
+
+        {/* bubble row — right aligned (from us) */}
+        <div className="flex items-end gap-3 flex-row-reverse">
+          {/* Avatar */}
+          <div className="compass-avatar">
+            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#fff' }}>explore</span>
+          </div>
+
+          {/* Bubble */}
+          <div className="compass-bubble">
+            <p className="compass-bubble-sender">Compass Assistant</p>
+            <div className="compass-bubble-body">
+              <p>Hi there! 👋 I'm your <strong>Compass</strong> procurement assistant.</p>
+              <p style={{ marginTop: '8px' }}>
+                I see you have <strong>Order #{po.po_num}</strong> scheduled for delivery on{' '}
+                <strong>{deliveryDate}</strong>.
+              </p>
+              <p style={{ marginTop: '8px' }}>Will you be able to deliver this order on time? ✅</p>
+            </div>
+            <p className="compass-bubble-time">Opening message</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Chat bubble component per sender_type
 const ChatBubble = ({ message }) => {
   const { sender_type, message_text, sent_at, escalation_required } = message;
@@ -238,13 +286,16 @@ const Chats = () => {
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-[#fafbfd]">
+                  {/* ── Compass opening message (always first) ── */}
+                  <CompassOpeningMessage po={selectedPo} />
+
                   <div className="flex justify-center">
                     <span className="px-4 py-1 bg-surface-container-low rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Today</span>
                   </div>
 
                   {chatMessages.length === 0 && !chatLoading && (
                     <div className="flex justify-center py-12">
-                      <p className="text-sm text-on-surface-variant/60 italic">No messages yet for this PO.</p>
+                      <p className="text-sm text-on-surface-variant/60 italic">No messages yet. The conversation will appear here once the vendor responds.</p>
                     </div>
                   )}
 
@@ -339,3 +390,84 @@ const Chats = () => {
 };
 
 export default Chats;
+
+/* ── Scoped styles for Compass opening message ───────────────────────────── */
+const _styles = (() => {
+  if (typeof document === 'undefined') return;
+  const id = 'compass-opening-styles';
+  if (document.getElementById(id)) return;
+  const s = document.createElement('style');
+  s.id = id;
+  s.textContent = `
+    .compass-opening-wrap {
+      margin-bottom: 0;
+    }
+    .compass-opening-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+    .compass-pin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #6366f1;
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-right: 44px;
+    }
+    .compass-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(99,102,241,.35);
+    }
+    .compass-bubble {
+      max-width: 72%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+    .compass-bubble-sender {
+      font-size: 10px;
+      font-weight: 800;
+      color: #6366f1;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-right: 4px;
+    }
+    .compass-bubble-body {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: #fff;
+      padding: 14px 18px;
+      border-radius: 18px 4px 18px 18px;
+      font-size: 13.5px;
+      line-height: 1.65;
+      box-shadow: 0 6px 20px rgba(99,102,241,.28);
+      text-align: left;
+    }
+    .compass-bubble-body strong {
+      font-weight: 800;
+    }
+    .compass-bubble-time {
+      font-size: 9px;
+      color: rgba(99,102,241,.55);
+      font-weight: 600;
+      margin-right: 4px;
+    }
+  `;
+  document.head.appendChild(s);
+})();

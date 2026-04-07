@@ -1,304 +1,643 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 
+/* ─── helpers ─────────────────────────────────────────── */
+const todayD = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+const fmtDate = (d) => {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+const fmtTime = (d) => {
+  if (!d) return '';
+  return new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+};
+const ETD_COLOR = (dateStr) => {
+  if (!dateStr) return 'text-slate-400';
+  const etd = new Date(dateStr);
+  etd.setHours(0,0,0,0);
+  const diff = Math.ceil((etd - todayD()) / 86400000);
+  if (diff < 0) return 'text-red-500 font-black';
+  if (diff === 0) return 'text-amber-500 font-black';
+  if (diff <= 3) return 'text-amber-400 font-black';
+  return 'text-emerald-500 font-medium';
+};
+
+/* ─── Stage config ─────────────────────────────────────── */
+const STAGES = [
+  {
+    key: 'discussion',
+    label: 'Discussion',
+    sub: 'Bot actively conversing with vendor',
+    icon: 'forum',
+    color: '#3b82f6',
+    bg: '#eff6ff',
+    border: '#bfdbfe',
+    match: (s) => ['prompt_sent','discussion','awaiting_response','initial'].includes(s),
+  },
+  {
+    key: 'first_escalation',
+    label: 'First Escalation',
+    sub: 'Vendor raised first issue flag',
+    icon: 'priority_high',
+    color: '#f59e0b',
+    bg: '#fffbeb',
+    border: '#fde68a',
+    match: (s) => ['first_escalation','escalation','exception_detected'].includes(s),
+  },
+  {
+    key: 'human_intervention',
+    label: 'Human Intervention',
+    sub: 'Ops team manually involved',
+    icon: 'support_agent',
+    color: '#ef4444',
+    bg: '#fef2f2',
+    border: '#fecaca',
+    match: (s) => ['human_intervention','manual_intervention','manual','exception'].includes(s),
+  },
+  {
+    key: 'resolved',
+    label: 'Resolved',
+    sub: 'Issue closed successfully',
+    icon: 'check_circle',
+    color: '#10b981',
+    bg: '#f0fdf4',
+    border: '#a7f3d0',
+    match: (s) => ['resolved','completed','closed','delivered'].includes(s),
+  },
+];
+
+const categoriseStage = (commState, status) => {
+  const s = (commState || status || '').toLowerCase().replace(/ /g, '_');
+  for (const stage of STAGES) {
+    if (stage.match(s)) return stage.key;
+  }
+  return 'discussion';
+};
+
+/* ─── KPI card ─────────────────────────────────────────── */
+const KpiCard = ({ label, value, icon, accent, sub }) => (
+  <div className={`db-kpi-card ${accent}`}>
+    <div className="db-kpi-icon">
+      <span className="material-symbols-outlined">{icon}</span>
+    </div>
+    <p className="db-kpi-label">{label}</p>
+    <h3 className="db-kpi-value">{value === null ? <span className="db-kpi-loading" /> : value}</h3>
+    {sub && <p className="db-kpi-sub">{sub}</p>}
+  </div>
+);
+
+/* ─── Dashboard ─────────────────────────────────────────── */
 const Dashboard = () => {
   const [modalOpen, setModalOpen] = useState(false);
-  const [dbStatus, setDbStatus] = useState('Connecting to Supabase...');
+  const [syncing, setSyncing]     = useState(false);
 
-  useEffect(() => {
-    async function testDb() {
+  /* KPIs */
+  const [kpis, setKpis] = useState({
+    totalPOs: null, openPOs: null, totalVendors: null, activeChats: null, dueToday: null,
+  });
+
+  /* escalations */
+  const [escalations, setEscalations] = useState([]);
+  const [escalLoading, setEscalLoading] = useState(true);
+  const [newEscalCount, setNewEscalCount] = useState(0);
+  const [escPage, setEscPage] = useState(1);
+  const ESCAL_PER_PAGE = 8;
+
+  /* stages */
+  const [stageData, setStageData] = useState(null);
+  const [stagesLoading, setStagesLoading] = useState(true);
+
+  /* caches */
+  const poDateCache  = useRef({});
+  const poStateCache = useRef({});
+
+  /* ─── helpers: try schema fallback ────────────────────── */
+  const queryChat = async (buildQuery) => {
+    for (const schema of ['procurement', 'public']) {
       try {
-        const { data: vendors, error: e1 } = await supabase.from('vendor_master').select('*').limit(1);
-        const { data: orders, error: e2 } = await supabase.from('purchase_order_data').select('*').limit(1);
-        
-        if (e1 || e2) throw e1 || e2;
-        
-        setDbStatus(`Connected ✅ (Vendors: ${vendors.length}, Orders: ${orders.length})`);
-      } catch (err) {
-        console.error("Supabase Error:", err.message);
-        setDbStatus(`Connection Error ❌`);
-      }
+        const base = schema === 'procurement'
+          ? supabase.schema('procurement').from('chat_messages')
+          : supabase.from('chat_messages');
+        const r = await buildQuery(base);
+        if (!r.error) return r.data;
+      } catch (_) {}
     }
-    testDb();
+    return null;
+  };
+
+  /* ─── fetch KPIs ──────────────────────────────────────── */
+  const fetchKPIs = useCallback(async () => {
+    try {
+      const todayIso = todayStr();
+      let allPOData = [], from = 0;
+      const limit = 1000;
+      let more = true;
+      while (more) {
+        const { data, error } = await supabase
+          .from('open_po_detail')
+          .select('po_num, delivery_date, status, vendor_name')
+          .range(from, from + limit - 1);
+        if (error) throw error;
+        if (data?.length) { allPOData = [...allPOData, ...data]; from += limit; }
+        if (!data || data.length < limit) more = false;
+      }
+
+      const seen = new Set();
+      let openCount = 0, dueCount = 0;
+      for (const row of allPOData) {
+        if (!seen.has(row.po_num)) {
+          seen.add(row.po_num);
+          if (row.delivery_date) poDateCache.current[row.po_num] = row.delivery_date;
+          poStateCache.current[row.po_num] = { status: row.status, vendorName: row.vendor_name };
+          const s = (row.status || '').toLowerCase();
+          if (s !== 'closed' && s !== 'delivered' && s !== 'completed') openCount++;
+          if (row.delivery_date?.slice(0,10) === todayIso) dueCount++;
+        }
+      }
+
+      const { count: vendorCount } = await supabase
+        .from('vendor_master').select('vendor', { count: 'exact', head: true });
+
+      const thirtyMinAgo = new Date(Date.now() - 30*60*1000).toISOString();
+      const chatRows = await queryChat(q => q.select('po_num').gte('created_at', thirtyMinAgo));
+      const activeChats = new Set((chatRows||[]).map(r => r.po_num)).size;
+
+      setKpis({ totalPOs: seen.size, openPOs: openCount, totalVendors: vendorCount ?? 0, activeChats, dueToday: dueCount });
+    } catch (err) { console.error('KPI fetch', err); }
+  }, []); // eslint-disable-line
+
+  /* ─── fetch stages ─────────────────────────────────────── */
+  const fetchStages = useCallback(async () => {
+    setStagesLoading(true);
+    try {
+      const msgs = await queryChat(q =>
+        q.select('po_num, communication_state, stage, created_at')
+          .order('created_at', { ascending: false })
+          .limit(500)
+      );
+
+      const poStageMap = {};
+      const poMeta = {};
+      const seen = new Set();
+      for (const msg of (msgs || [])) {
+        if (!seen.has(msg.po_num)) {
+          seen.add(msg.po_num);
+          const cs = msg.communication_state || msg.stage || '';
+          const fb = poStateCache.current[msg.po_num]?.status || '';
+          poStageMap[msg.po_num] = categoriseStage(cs, fb);
+          poMeta[msg.po_num] = {
+            vendorName: poStateCache.current[msg.po_num]?.vendorName || '—',
+            delivery_date: poDateCache.current[msg.po_num] || null,
+          };
+        }
+      }
+
+      // fallback: bucket all POs by their status if no chat data
+      if (!msgs || msgs.length === 0) {
+        for (const [poNum, info] of Object.entries(poStateCache.current)) {
+          poStageMap[poNum] = categoriseStage('', info.status);
+          poMeta[poNum] = { vendorName: info.vendorName || '—', delivery_date: poDateCache.current[poNum] || null };
+        }
+      }
+
+      const grouped = {};
+      STAGES.forEach(s => { grouped[s.key] = []; });
+      for (const [poNum, stageKey] of Object.entries(poStageMap)) {
+        grouped[stageKey]?.push({ poNum, ...poMeta[poNum] });
+      }
+      setStageData(grouped);
+    } catch (err) {
+      console.error('Stages fetch', err);
+      setStageData(null);
+    } finally { setStagesLoading(false); }
+  }, []); // eslint-disable-line
+
+  /* ─── fetch escalations ─────────────────────────────────── */
+  const fetchEscalations = useCallback(async () => {
+    setEscalLoading(true);
+    try {
+      const data = await queryChat(q =>
+        q.select('*').eq('escalation', true)
+          .order('created_at', { ascending: false }).limit(200)
+      );
+      setEscalations((data||[]).map(msg => ({
+        ...msg, delivery_date: poDateCache.current[msg.po_num] || null,
+      })));
+      setEscPage(1);
+    } catch (err) {
+      console.error('Escalations fetch', err);
+      setEscalations([]);
+    } finally { setEscalLoading(false); }
+  }, []); // eslint-disable-line
+
+  /* ─── initial load ──────────────────────────────────────── */
+  useEffect(() => {
+    fetchKPIs().then(() => Promise.all([fetchEscalations(), fetchStages()]));
+  }, [fetchKPIs, fetchEscalations, fetchStages]);
+
+  /* ─── realtime ──────────────────────────────────────────── */
+  useEffect(() => {
+    const channels = ['procurement', 'public'].map(schema =>
+      supabase.channel(`dash-escal-${schema}`)
+        .on('postgres_changes', { event: 'INSERT', schema, table: 'chat_messages', filter: 'escalation=eq.true' },
+          (payload) => {
+            const newMsg = { ...payload.new, delivery_date: poDateCache.current[payload.new.po_num] || null };
+            setEscalations(prev => [newMsg, ...prev]);
+            setNewEscalCount(c => c + 1);
+          })
+        .subscribe()
+    );
+    return () => channels.forEach(ch => supabase.removeChannel(ch));
   }, []);
 
-  return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
-        <header className="flex justify-between items-center h-16 px-8 w-full bg-white dark:bg-slate-900 sticky top-0 z-40 transition-all flex-shrink-0 border-b border-surface-container/50">
-          <div className="flex items-center gap-8">
-            <span className="text-lg font-bold tracking-tighter text-slate-900 dark:text-slate-100 font-headline">Architect Intelligence</span>
-            
-            {/* Visual Database Status Badge */}
-            <div className="ml-4 px-3 py-1 bg-surface-container text-xs font-bold rounded-full text-slate-600 shadow-inner flex items-center gap-2">
-               <span className="relative flex h-2 w-2">
-                 <span className={`${dbStatus.includes('Connected') ? 'bg-green-500' : 'bg-amber-500'} animate-ping absolute inline-flex h-full w-full rounded-full opacity-75`}></span>
-                 <span className={`relative inline-flex rounded-full h-2 w-2 ${dbStatus.includes('Connected') ? 'bg-green-500' : 'bg-amber-500'}`}></span>
-               </span>
-               {dbStatus}
-            </div>
+  /* ─── sync ──────────────────────────────────────────────── */
+  const handleSync = async () => {
+    setSyncing(true);
+    setNewEscalCount(0);
+    await fetchKPIs();
+    await Promise.all([fetchEscalations(), fetchStages()]);
+    setSyncing(false);
+  };
 
+  /* ─── pagination ────────────────────────────────────────── */
+  const totalEscalPages = Math.ceil(escalations.length / ESCAL_PER_PAGE) || 1;
+  const paginatedEscal  = escalations.slice((escPage-1)*ESCAL_PER_PAGE, escPage*ESCAL_PER_PAGE);
+
+  /* ─── render ────────────────────────────────────────────── */
+  return (
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+      <Sidebar />
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+
+        {/* ── Header ── */}
+        <header className="flex justify-between items-center h-16 px-8 w-full bg-white border-b border-slate-100 shadow-sm z-40 flex-shrink-0">
+          <div className="flex items-center gap-6">
+            <h1 className="text-base font-black tracking-tighter text-slate-900 uppercase font-headline">
+              Procurement&nbsp;Ops
+            </h1>
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              Live
+            </span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <span className="material-symbols-outlined p-2 text-slate-500 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-full cursor-pointer transition-colors">notifications</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
-            </div>
-            <div className="h-8 w-[1px] bg-outline-variant/20 mx-2"></div>
-            <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-3">
+            <button onClick={handleSync} disabled={syncing}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest rounded-xl border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all disabled:opacity-50">
+              <span className={`material-symbols-outlined text-[16px] ${syncing ? 'animate-spin' : ''}`}>sync</span>
+              {syncing ? 'Syncing…' : 'Sync'}
+            </button>
+
+            <button onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-700 transition-all shadow-sm">
+              <span className="material-symbols-outlined text-[16px]">upload_file</span>
+              Import POs
+            </button>
+
+            <div className="flex items-center gap-3 ml-2">
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-bold text-on-surface">Alex Rivera</p>
-                <p className="text-[10px] text-on-surface-variant font-label">OPS MANAGER</p>
+                <p className="text-xs font-black text-slate-800">Alex Rivera</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Ops Manager</p>
               </div>
-              <img alt="User profile avatar" className="w-10 h-10 rounded-full border-2 border-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8ov37m6Ru1jtLXavUm2Wv7-q8IqttbDcSU5OJzUCKT6ZmPdV8o10Gkm2bzBBlUkUAfR7nPEInOWhBPKK0JB-n56VPQC2sJvCZVr9a9eqzujzWSusoB7Pqo3Zl5PSfDCMpzoPbo0JZh5CHcjqc7lATQ1qKELXGJ7WeD5DB3SN3FaTJ4H9VBzP_Fvv51A3UPXtSYL_rtKoK2k8LRfiEklf60DY9c3Hul2Ue3yIjaHQmSa85wLfALExg-6xFvgM8lPDR6WQOIutN4I6d" />
+              <img alt="User profile" className="w-9 h-9 rounded-full border-2 border-slate-200 shadow-sm"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8ov37m6Ru1jtLXavUm2Wv7-q8IqttbDcSU5OJzUCKT6ZmPdV8o10Gkm2bzBBlUkUAfR7nPEInOWhBPKK0JB-n56VPQC2sJvCZVr9a9eqzujzWSusoB7Pqo3Zl5PSfDCMpzoPbo0JZh5CHcjqc7lATQ1qKELXGJ7WeD5DB3SN3FaTJ4H9VBzP_Fvv51A3UPXtSYL_rtKoK2k8LRfiEklf60DY9c3Hul2Ue3yIjaHQmSa85wLfALExg-6xFvgM8lPDR6WQOIutN4I6d" />
             </div>
           </div>
         </header>
 
-        <div className="p-8 space-y-10">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        {/* ── Content ── */}
+        <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
+          <div className="max-w-[1600px] mx-auto w-full space-y-6">
+
+            {/* Page title */}
             <div>
-              <h2 className="text-[2.25rem] font-extrabold font-headline leading-tight tracking-tight text-on-surface">Procurement Operations Dashboard</h2>
-              <p className="text-on-surface-variant text-lg mt-2 max-w-2xl font-body">Monitor purchase orders, vendor communication, and operational exceptions with high-precision tracking.</p>
+              <h2 className="text-3xl font-black text-slate-900 font-headline tracking-tighter uppercase leading-none">
+                Operations Dashboard
+              </h2>
+              <p className="text-slate-400 font-medium mt-1.5 text-sm">
+                Real-time monitoring of purchase orders, vendor communication, and escalations.
+              </p>
             </div>
-            <div className="flex items-center gap-3">
-              <button className="bg-surface-container-high text-primary px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-surface-container-highest transition-all flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px]">list_alt</span>
-                View All POs
-              </button>
-              <button onClick={() => setModalOpen(true)} className="bg-cta-gradient text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px]">upload_file</span>
-                Upload Excel
-              </button>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-surface-container-lowest p-6 rounded-xl custom-shadow">
-              <p className="text-[10px] font-bold font-label text-on-surface-variant tracking-widest uppercase">Total POs</p>
-              <div className="flex items-end justify-between mt-2">
-                <h3 className="text-3xl font-extrabold font-headline">1,450</h3>
-                <span className="text-xs font-bold text-[#008a00] bg-[#008a001a] px-2 py-1 rounded-lg flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">trending_up</span> 12%
-                </span>
-              </div>
+            {/* ── KPI Grid ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              <KpiCard label="Total POs"     value={kpis.totalPOs}     icon="receipt_long"    accent="kpi-neutral"                                         sub="All purchase orders"  />
+              <KpiCard label="Open POs"      value={kpis.openPOs}      icon="pending_actions" accent="kpi-blue"                                             sub="Active & in-transit"  />
+              <KpiCard label="Total Vendors" value={kpis.totalVendors} icon="hub"             accent="kpi-indigo"                                           sub="Registered partners"  />
+              <KpiCard label="Active Chats"  value={kpis.activeChats}  icon="forum"           accent="kpi-green"                                            sub="Last 30 minutes"      />
+              <KpiCard label="Due Today"     value={kpis.dueToday}     icon="calendar_today"  accent={kpis.dueToday > 0 ? 'kpi-amber' : 'kpi-neutral'}     sub="Delivery date = today" />
             </div>
-            <div className="bg-surface-container-lowest p-6 rounded-xl custom-shadow">
-              <p className="text-[10px] font-bold font-label text-on-surface-variant tracking-widest uppercase">Open POs</p>
-              <div className="flex items-end justify-between mt-2">
-                <h3 className="text-3xl font-extrabold font-headline">320</h3>
-                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-lg">Active</span>
-              </div>
-            </div>
-            <div className="bg-error-container p-6 rounded-xl custom-shadow">
-              <p className="text-[10px] font-bold font-label text-on-error-container tracking-widest uppercase">Delayed POs</p>
-              <div className="flex items-end justify-between mt-2">
-                <h3 className="text-3xl font-extrabold font-headline text-on-error-container">42</h3>
-                <span className="material-symbols-outlined text-on-error-container">warning</span>
-              </div>
-            </div>
-            <div className="bg-surface-container-lowest p-6 rounded-xl custom-shadow border-l-4 border-error">
-              <p className="text-[10px] font-bold font-label text-on-surface-variant tracking-widest uppercase">At-Risk POs</p>
-              <div className="flex items-end justify-between mt-2">
-                <h3 className="text-3xl font-extrabold font-headline">18</h3>
-                <div className="flex -space-x-2">
-                  <div className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white"></div>
-                  <div className="w-6 h-6 rounded-full bg-slate-300 border-2 border-white"></div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            <div className="xl:col-span-2 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-surface-container-lowest p-8 rounded-xl custom-shadow flex flex-col h-80">
-                  <div className="flex justify-between items-start mb-6">
-                    <h4 className="font-bold font-headline text-on-surface">PO Status Distribution</h4>
-                    <span className="material-symbols-outlined text-on-surface-variant">more_horiz</span>
-                  </div>
-                  <div className="flex-1 flex items-center justify-center relative">
-                    <div className="w-40 h-40 rounded-full border-[20px] border-primary border-r-secondary border-b-secondary-container relative flex items-center justify-center">
-                      <div className="text-center">
-                        <p className="text-2xl font-extrabold leading-none">78%</p>
-                        <p className="text-[10px] font-bold font-label text-on-surface-variant uppercase mt-1">On Time</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-center gap-6 mt-6">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-primary"></div>
-                      <span className="text-xs font-semibold text-on-surface-variant">Completed</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-secondary"></div>
-                      <span className="text-xs font-semibold text-on-surface-variant">In-Transit</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-secondary-container"></div>
-                      <span className="text-xs font-semibold text-on-surface-variant">Delayed</span>
-                    </div>
-                  </div>
-                </div>
+            {/* ── Bottom row: Escalations (3/5) + Stages (2/5) ── */}
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
 
-                <div className="bg-surface-container-lowest p-8 rounded-xl custom-shadow flex flex-col h-80">
-                  <div className="flex justify-between items-start mb-6">
-                    <h4 className="font-bold font-headline text-on-surface">Order Volume Trend</h4>
-                    <div className="flex gap-2">
-                      <span className="text-[10px] font-bold font-label bg-surface-container-high px-2 py-1 rounded">WEEKLY</span>
+              {/* ── Escalations table ── */}
+              <div className="xl:col-span-3 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                {/* header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-red-500 text-lg">notification_important</span>
                     </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Escalations</h3>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                        Real-time · messages with escalation flag
+                      </p>
+                    </div>
+                    {newEscalCount > 0 && (
+                      <span className="px-2.5 py-0.5 bg-red-500 text-white text-[9px] font-black rounded-full animate-pulse">
+                        +{newEscalCount} new
+                      </span>
+                    )}
                   </div>
-                  <div className="flex-1 flex items-end gap-3 pb-2 border-b border-outline-variant/20">
-                    <div className="flex-1 bg-surface-container-low h-[40%] rounded-t-sm"></div>
-                    <div className="flex-1 bg-surface-container-low h-[65%] rounded-t-sm"></div>
-                    <div className="flex-1 bg-primary h-[85%] rounded-t-sm"></div>
-                    <div className="flex-1 bg-surface-container-low h-[55%] rounded-t-sm"></div>
-                    <div className="flex-1 bg-surface-container-low h-[70%] rounded-t-sm"></div>
-                    <div className="flex-1 bg-primary h-[95%] rounded-t-sm"></div>
-                    <div className="flex-1 bg-surface-container-low h-[60%] rounded-t-sm"></div>
-                  </div>
-                  <div className="flex justify-between mt-3 px-1 text-[10px] font-bold font-label text-on-surface-variant">
-                    <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-surface-container-lowest p-6 rounded-xl custom-shadow">
-                  <p className="text-[10px] font-bold font-label text-on-surface-variant tracking-widest uppercase">Completed POs</p>
-                  <div className="flex items-end justify-between mt-2">
-                    <h3 className="text-2xl font-extrabold font-headline">1,130</h3>
-                    <span className="material-symbols-outlined text-[#008a00]">check_circle</span>
-                  </div>
-                </div>
-                <div className="bg-surface-container-lowest p-6 rounded-xl custom-shadow">
-                  <p className="text-[10px] font-bold font-label text-on-surface-variant tracking-widest uppercase">Active Vendor Chats</p>
-                  <div className="flex items-end justify-between mt-2">
-                    <h3 className="text-2xl font-extrabold font-headline">24</h3>
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-full border border-emerald-100">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                      </span>
+                      Live
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100">
+                      {escalations.length} row{escalations.length !== 1 ? 's' : ''}
                     </span>
                   </div>
                 </div>
-                <div className="bg-surface-container-lowest p-6 rounded-xl custom-shadow">
-                  <p className="text-[10px] font-bold font-label text-on-surface-variant tracking-widest uppercase">Manual Interventions</p>
-                  <div className="flex items-end justify-between mt-2">
-                    <h3 className="text-2xl font-extrabold font-headline">5</h3>
-                    <span className="material-symbols-outlined text-on-surface-variant">back_hand</span>
+
+                {/* table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse min-w-[520px]">
+                    <thead className="bg-slate-50/60 border-b border-slate-100">
+                      <tr>
+                        {['PO #','Vendor Code','Delivery','Reason / Message','Time'].map(h => (
+                          <th key={h} className="text-left px-6 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {escalLoading ? (
+                        [...Array(4)].map((_,i) => (
+                          <tr key={i} className="animate-pulse">
+                            <td colSpan={5} className="px-6 py-3"><div className="h-7 bg-slate-50 rounded-xl" /></td>
+                          </tr>
+                        ))
+                      ) : paginatedEscal.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-16 text-center">
+                            <div className="flex flex-col items-center gap-2">
+                              <span className="material-symbols-outlined text-3xl text-slate-200">check_circle</span>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">No escalations detected</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedEscal.map((row, idx) => (
+                          <tr key={row.id||idx} className="hover:bg-red-50/20 transition-all border-l-4 border-red-400">
+                            <td className="px-6 py-3">
+                              <span className="text-xs font-black text-slate-900">#{row.po_num||'—'}</span>
+                            </td>
+                            <td className="px-6 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 text-[9px] font-black flex-shrink-0">
+                                  {(row.vendor_code||row.po_num||'??').toString().slice(0,2).toUpperCase()}
+                                </div>
+                                <span className="text-[10px] font-black text-slate-700 truncate max-w-[80px]">{row.vendor_code||'—'}</span>
+                              </div>
+                            </td>
+                            <td className={`px-6 py-3 text-[10px] font-bold ${ETD_COLOR(row.delivery_date)}`}>
+                              {fmtDate(row.delivery_date)}
+                            </td>
+                            <td className="px-6 py-3 max-w-[160px]">
+                              <p className="text-[10px] text-slate-500 truncate" title={row.message_text}>{row.message_text||'—'}</p>
+                            </td>
+                            <td className="px-6 py-3">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-slate-500">{fmtDate(row.created_at)}</span>
+                                <span className="text-[9px] text-slate-400">{fmtTime(row.created_at)}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* pagination */}
+                {!escalLoading && (
+                  <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    <span>
+                      {escalations.length > 0
+                        ? `${(escPage-1)*ESCAL_PER_PAGE+1}–${Math.min(escPage*ESCAL_PER_PAGE, escalations.length)} of ${escalations.length}`
+                        : '0 escalations'}
+                    </span>
+                    <div className="flex gap-1.5 items-center">
+                      <button disabled={escPage===1} onClick={() => setEscPage(p=>p-1)}
+                        className="flex items-center gap-1 px-2.5 py-1 border border-slate-200 rounded-lg hover:bg-white hover:text-blue-600 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
+                        <span className="material-symbols-outlined text-[10px]">west</span> Prev
+                      </button>
+                      <span className="px-2.5 py-1 font-bold text-slate-500 bg-white border border-slate-200 rounded-lg">
+                        {escPage}/{totalEscalPages}
+                      </span>
+                      <button disabled={escPage>=totalEscalPages} onClick={() => setEscPage(p=>p+1)}
+                        className="flex items-center gap-1 px-2.5 py-1 border border-slate-200 rounded-lg hover:bg-white hover:text-blue-600 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
+                        Next <span className="material-symbols-outlined text-[10px]">east</span>
+                      </button>
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* ── Conversation Stages panel ── */}
+              <div className="xl:col-span-2 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                {/* header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-violet-500 text-lg">account_tree</span>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Conversation Stages</h3>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Current PO pipeline states</p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100">
+                    {stageData ? Object.values(stageData).reduce((a,b)=>a+b.length,0) : '—'} POs
+                  </span>
+                </div>
+
+                {/* stages */}
+                <div className="p-5 space-y-3">
+                  {stagesLoading ? (
+                    [...Array(4)].map((_,i) => (
+                      <div key={i} className="animate-pulse h-[72px] bg-slate-50 rounded-2xl" />
+                    ))
+                  ) : (
+                    STAGES.map((stage, sIdx) => {
+                      const pos = stageData?.[stage.key] || [];
+                      const count = pos.length;
+                      const isLast = sIdx === STAGES.length - 1;
+                      return (
+                        <div key={stage.key} className="relative">
+                          {!isLast && (
+                            <div className="absolute left-[28px] top-[72px] w-[2px] h-3 z-0"
+                              style={{ background: `linear-gradient(${stage.color}55, ${STAGES[sIdx+1].color}55)` }} />
+                          )}
+                          <div className="stage-card" style={{ borderColor: stage.border, background: stage.bg }}>
+                            <div className="flex items-start gap-3">
+                              <div className="stage-icon flex-shrink-0" style={{ background: `${stage.color}18`, color: stage.color }}>
+                                <span className="material-symbols-outlined text-base">{stage.icon}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-xs font-black text-slate-800">{stage.label}</p>
+                                  <span className="stage-badge flex-shrink-0" style={{ background: stage.color }}>{count}</span>
+                                </div>
+                                <p className="text-[9px] text-slate-400 font-medium mt-0.5 leading-tight">{stage.sub}</p>
+                                {count > 0 ? (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {pos.slice(0,4).map(po => (
+                                      <span key={po.poNum} className="po-chip"
+                                        style={{ color: stage.color, borderColor: `${stage.color}30`, background: `${stage.color}0f` }}>
+                                        #{po.poNum}
+                                      </span>
+                                    ))}
+                                    {count > 4 && (
+                                      <span className="po-chip" style={{ color:'#94a3b8', borderColor:'#e2e8f0', background:'#f8fafc' }}>
+                                        +{count - 4} more
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-[9px] text-slate-300 font-bold mt-2 italic">No POs at this stage</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-8">
-              <div className="bg-surface-container-lowest rounded-xl custom-shadow overflow-hidden">
-                <div className="bg-error-container p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-on-error-container">
-                    <span className="material-symbols-outlined">notification_important</span>
-                    <h4 className="font-bold font-headline text-sm">Critical Exceptions</h4>
-                  </div>
-                  <span className="bg-error text-white text-[10px] font-bold px-2 py-0.5 rounded-full">12</span>
-                </div>
-                <div className="p-2">
-                  <div className="space-y-1">
-                    <div className="p-4 hover:bg-surface-container-low transition-colors rounded-lg cursor-pointer">
-                      <div className="flex justify-between">
-                        <p className="text-sm font-bold text-on-surface">Global Logistics Ltd</p>
-                        <span className="text-[10px] font-bold text-error">DELAYED</span>
-                      </div>
-                      <p className="text-xs text-on-surface-variant mt-1">PO #45091 - Shipment stuck at port</p>
-                    </div>
-                    <div className="p-4 hover:bg-surface-container-low transition-colors rounded-lg cursor-pointer">
-                      <div className="flex justify-between">
-                        <p className="text-sm font-bold text-on-surface">TechSystems Inc.</p>
-                        <span className="text-[10px] font-bold text-primary">WAITING</span>
-                      </div>
-                      <p className="text-xs text-on-surface-variant mt-1">Vendor requested manual review of terms</p>
-                    </div>
-                  </div>
-                  <button className="w-full text-primary font-bold text-xs py-4 hover:bg-surface-container-low transition-colors rounded-b-xl">View All Exceptions</button>
-                </div>
-              </div>
-
-              <div className="bg-surface-container-lowest rounded-xl custom-shadow overflow-hidden">
-                <div className="p-6 border-b border-outline-variant/10">
-                  <h4 className="font-bold font-headline text-on-surface text-sm uppercase tracking-wider">Recent Conversations</h4>
-                </div>
-                <div className="p-2 space-y-1">
-                  <div className="p-4 bg-surface-container-low rounded-xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-slate-300"></div>
-                        <p className="text-xs font-bold">Horizon Supply</p>
-                      </div>
-                      <span className="text-[10px] font-bold text-primary px-2 py-0.5 bg-primary/10 rounded">BOT ACTIVE</span>
-                    </div>
-                    <p className="text-xs font-medium text-on-surface italic truncate">"Estimated arrival is now Friday morning..."</p>
-                  </div>
-                  <div className="p-4 hover:bg-surface-container-low transition-colors rounded-xl cursor-pointer">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-slate-400"></div>
-                        <p className="text-xs font-bold">Delta Group</p>
-                      </div>
-                      <span className="text-[10px] font-bold text-on-surface-variant px-2 py-0.5 bg-surface-container-high rounded">MANUAL</span>
-                    </div>
-                    <p className="text-xs text-on-surface-variant truncate">"Please review the revised invoice attached."</p>
-                  </div>
-                </div>
-                <button className="w-full text-center py-4 border-t border-outline-variant/10 text-xs font-bold text-on-surface-variant hover:text-on-surface transition-colors">Open Message Center</button>
-              </div>
-
-            </div>
+            </div>{/* end bottom grid */}
           </div>
         </div>
       </main>
 
-      {/* Upload Modal Popup */}
+      {/* ── Upload Modal ── */}
       {modalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden zoom-in-95 duration-200">
-            <div className="p-6 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-lowest">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white">
                   <span className="material-symbols-outlined">upload_file</span>
                 </div>
                 <div>
-                  <h4 className="font-extrabold font-headline text-on-surface text-lg">Data Integration Engine</h4>
-                  <p className="text-xs text-on-surface-variant">Bulk upload purchase orders and vendor manifests.</p>
+                  <h4 className="font-black text-slate-900 text-base font-headline">Import Purchase Orders</h4>
+                  <p className="text-xs text-slate-400">Upload your Excel or CSV file to import PO data</p>
                 </div>
               </div>
-              <button className="text-on-surface-variant hover:text-on-surface transition-colors" onClick={() => setModalOpen(false)}>
+              <button className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition-colors"
+                onClick={() => setModalOpen(false)}>
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             <div className="p-8">
-              <div className="border-2 border-dashed border-primary/30 rounded-2xl bg-primary/5 p-12 text-center group hover:border-primary/50 transition-colors cursor-pointer relative">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-md group-hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined text-primary text-3xl">cloud_upload</span>
+              <div className="border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 p-12 text-center group hover:border-blue-300 hover:bg-blue-50/30 transition-all cursor-pointer relative">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-blue-500 text-3xl">cloud_upload</span>
                 </div>
-                <p className="text-on-surface font-bold text-lg">Drag and drop your Excel file here</p>
-                <p className="text-on-surface-variant text-sm mt-1">Accepts .xlsx, .csv formats up to 50MB</p>
-                <div className="flex justify-center gap-4 mt-8">
-                  <span className="px-4 py-1.5 bg-white rounded-full text-[11px] font-bold font-label shadow-sm border border-outline-variant/20 text-on-surface-variant">Vendor List</span>
-                  <span className="px-4 py-1.5 bg-white rounded-full text-[11px] font-bold font-label shadow-sm border border-outline-variant/20 text-on-surface-variant">Open PO Data</span>
-                  <span className="px-4 py-1.5 bg-white rounded-full text-[11px] font-bold font-label shadow-sm border border-outline-variant/20 text-on-surface-variant">Inventory Manifest</span>
+                <p className="text-slate-700 font-black text-lg">Drag and drop your file here</p>
+                <p className="text-slate-400 text-sm mt-1">Accepts .xlsx, .csv formats up to 50MB</p>
+                <div className="flex justify-center gap-3 mt-6">
+                  {['Vendor List','Open PO Data','Inventory Manifest'].map(t => (
+                    <span key={t} className="px-4 py-1.5 bg-white rounded-full text-[11px] font-black shadow-sm border border-slate-100 text-slate-500">{t}</span>
+                  ))}
                 </div>
-                <input accept=".xlsx, .csv" className="absolute inset-0 opacity-0 cursor-pointer" type="file" />
+                <input accept=".xlsx,.csv" className="absolute inset-0 opacity-0 cursor-pointer" type="file" />
               </div>
             </div>
-            <div className="p-6 bg-surface-container-lowest border-t border-outline-variant/10 flex justify-end gap-3">
-              <button className="px-6 py-2.5 rounded-xl font-bold text-sm text-on-surface-variant hover:bg-surface-container-high transition-all" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button className="bg-cta-gradient text-white px-8 py-2.5 rounded-xl font-bold text-sm shadow-lg hover:opacity-90 active:scale-95 transition-all">
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button className="px-6 py-2.5 rounded-xl font-black text-sm text-slate-500 hover:bg-slate-100 transition-all"
+                onClick={() => setModalOpen(false)}>Cancel</button>
+              <button className="bg-slate-900 text-white px-8 py-2.5 rounded-xl font-black text-sm hover:bg-slate-700 active:scale-95 transition-all">
                 Process Data
               </button>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .font-headline { font-family: 'Outfit', sans-serif; }
+
+        /* ── KPI cards ── */
+        .db-kpi-card {
+          position: relative; padding: 1.25rem; border-radius: 1.25rem;
+          border: 1px solid #f1f5f9; background: white;
+          box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden;
+          transition: transform .15s, box-shadow .15s; cursor: default;
+        }
+        .db-kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+        .db-kpi-icon {
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 2.25rem; height: 2.25rem; border-radius: .75rem; margin-bottom: .75rem;
+        }
+        .db-kpi-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .12em; color: #94a3b8; margin-bottom: .2rem; }
+        .db-kpi-value { font-size: 1.875rem; font-weight: 900; line-height: 1; font-family: 'Outfit', sans-serif; color: #0f172a; }
+        .db-kpi-sub   { font-size: 9px; font-weight: 700; color: #cbd5e1; margin-top: .3rem; }
+        .db-kpi-loading {
+          display: inline-block; width: 2.5rem; height: 1.5rem;
+          background: linear-gradient(90deg, #f1f5f9, #e2e8f0, #f1f5f9);
+          background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: .5rem;
+        }
+        @keyframes shimmer { 0%{ background-position: 200% 0 } 100%{ background-position: -200% 0 } }
+
+        .kpi-neutral .db-kpi-icon { background: #f8fafc; color: #64748b; }
+        .kpi-blue    .db-kpi-icon { background: #eff6ff; color: #2563eb; }
+        .kpi-blue    .db-kpi-value { color: #2563eb; }
+        .kpi-indigo  .db-kpi-icon { background: #eef2ff; color: #4f46e5; }
+        .kpi-indigo  .db-kpi-value { color: #4f46e5; }
+        .kpi-green   .db-kpi-icon { background: #f0fdf4; color: #16a34a; }
+        .kpi-green   .db-kpi-value { color: #16a34a; }
+        .kpi-amber   .db-kpi-icon { background: #fffbeb; color: #d97706; }
+        .kpi-amber   .db-kpi-value { color: #d97706; }
+
+        /* ── Stage cards ── */
+        .stage-card {
+          padding: .875rem 1rem; border-radius: 1.125rem; border: 1px solid;
+          transition: transform .12s, box-shadow .12s; cursor: default;
+        }
+        .stage-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.07); }
+        .stage-icon {
+          width: 2.25rem; height: 2.25rem; border-radius: .75rem;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .stage-badge {
+          display: inline-flex; align-items: center; justify-content: center;
+          min-width: 1.5rem; height: 1.5rem; padding: 0 .375rem;
+          border-radius: .5rem; font-size: 11px; font-weight: 900; color: white; line-height: 1;
+        }
+        .po-chip {
+          display: inline-flex; align-items: center;
+          padding: 2px 7px; border-radius: 6px; border: 1px solid;
+          font-size: 9px; font-weight: 900; letter-spacing: .03em;
+          transition: opacity .1s; cursor: default;
+        }
+        .po-chip:hover { opacity: .65; }
+      `}</style>
     </div>
   );
 };
