@@ -43,15 +43,7 @@ const Sidebar = () => {
 
       {/* Search & Ask Agent */}
       <div className="p-4 space-y-3">
-        <button className="w-full flex items-center justify-between bg-slate-50/80 hover:bg-slate-100 text-slate-500 px-3 py-2 rounded-xl transition-colors border border-transparent hover:border-slate-200">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] text-slate-400">search</span>
-            <span className="text-[13px]">Search...</span>
-          </div>
-          <div className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-400 opacity-80 shadow-sm flex items-center">
-            <span className="material-symbols-outlined text-[10px] mr-0.5">keyboard_command_key</span>K
-          </div>
-        </button>
+
         <button className="w-full flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2.5 rounded-xl transition-colors text-[13px] font-semibold">
           <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
           Ask Agent
