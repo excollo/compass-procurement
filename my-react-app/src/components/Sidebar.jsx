@@ -56,8 +56,7 @@ const Sidebar = () => {
           <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-4 mb-2">Command</h4>
           <div className="space-y-0.5">
             <NavItem to="/dashboard" icon="grid_view" label="Dashboard" />
-            <NavItem icon="shield" label="Command Center" />
-            <NavItem icon="layers" label="Data Explorer" />
+            <NavItem to="/data-explorer" icon="layers" label="Data Explorer" />
           </div>
         </div>
 
