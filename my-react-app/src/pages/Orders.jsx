@@ -207,21 +207,52 @@ const Orders = () => {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-4 gap-4 mb-8">
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-center">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Total Open POs</p>
-                <h3 className="text-3xl font-black text-slate-900 dark:text-white">{stats.total}</h3>
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
+                    <span className="material-symbols-outlined text-[18px] text-white">receipt_long</span>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-500">Total Open POs</span>
+                </div>
+                <div>
+                  <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">{stats.total}</h3>
+                </div>
               </div>
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-center">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Due Within 3 Days</p>
-                <h3 className="text-3xl font-black text-amber-500">{stats.dueWithin3Days}</h3>
+
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
+                    <span className="material-symbols-outlined text-[18px] text-white">event</span>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-500">Due Within 3 Days</span>
+                </div>
+                <div>
+                  <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">{stats.dueWithin3Days}</h3>
+                </div>
               </div>
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-center">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">At-Risk POs</p>
-                <h3 className="text-3xl font-black text-red-500">{stats.atRisk}</h3>
+
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
+                    <span className="material-symbols-outlined text-[18px] text-white">warning</span>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-500">At-Risk POs</span>
+                </div>
+                <div>
+                  <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">{stats.atRisk}</h3>
+                </div>
               </div>
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-center">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Awaiting Response</p>
-                <h3 className="text-3xl font-black text-blue-500">{stats.awaitingResponse}</h3>
+
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
+                    <span className="material-symbols-outlined text-[18px] text-white">forum</span>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-500">Awaiting Response</span>
+                </div>
+                <div>
+                  <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">{stats.awaitingResponse}</h3>
+                </div>
               </div>
             </div>
 
