@@ -222,18 +222,18 @@ const OrderDetail = () => {
                                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Synchronized Pipeline
                                 </div>
                             </div>
-                            <div className="overflow-x-auto">
+                    <div className="overflow-x-auto">
                                 <table className="w-full border-collapse">
                                     <thead className="bg-[#F8FAFC]/80 dark:bg-slate-800">
                                         <tr>
                                             <th className="px-8 py-5 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Item No</th>
                                             <th className="px-8 py-5 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Description</th>
-                                            <th className="px-8 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Ordered</th>
-                                            <th className="px-8 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Delivered</th>
+                                            <th className="px-8 py-5 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Ordered</th>
+                                            <th className="px-8 py-5 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Delivered</th>
                                             <th className="px-8 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Open Qty</th>
                                             <th className="px-8 py-5 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">UOM</th>
-                                            <th className="px-8 py-5 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Progress</th>
                                             <th className="px-8 py-5 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                            <th className="px-8 py-5 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -241,48 +241,116 @@ const OrderDetail = () => {
                                             const ordered = formatQty(item.po_quantity);
                                             const delivered = formatQty(item.delivered_quantity);
                                             const open = formatQty(item.open_quantity);
-                                            const rate = ordered > 0 ? (delivered / ordered) * 100 : 0;
                                             
+                                            const handleSave = async (rowData) => {
+                                                try {
+                                                    const { error } = await supabase
+                                                        .from('open_po_detail')
+                                                        .update({
+                                                            po_quantity: rowData.po_quantity,
+                                                            delivered_quantity: rowData.delivered_quantity,
+                                                            status: rowData.status,
+                                                            open_quantity: rowData.open_quantity
+                                                        })
+                                                        .eq('po_num', rowData.po_num)
+                                                        .eq('po_item', rowData.po_item);
+
+                                                    if (error) throw error;
+                                                    alert('Row updated successfully');
+                                                } catch (err) {
+                                                    console.error('Error updating row:', err);
+                                                    alert('Update failed: ' + err.message);
+                                                }
+                                            };
+
+                                            const handleChange = (field, value) => {
+                                                const newItems = [...poItems];
+                                                const updatedItem = { ...newItems[idx], [field]: value };
+                                                
+                                                if (field === 'po_quantity' || field === 'delivered_quantity') {
+                                                    const q = parseFloat(field === 'po_quantity' ? value : updatedItem.po_quantity) || 0;
+                                                    const d = parseFloat(field === 'delivered_quantity' ? value : updatedItem.delivered_quantity) || 0;
+                                                    updatedItem.open_quantity = q - d;
+                                                }
+                                                
+                                                newItems[idx] = updatedItem;
+                                                setPoItems(newItems);
+                                            };
+
                                             return (
                                                 <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-all group">
-                                                    <td className="px-8 py-6">
+                                                    <td className="px-8 py-4">
                                                         <p className="text-sm font-black text-slate-900 dark:text-white leading-none">#{Number(item.po_item) / 10}</p>
                                                     </td>
-                                                    <td className="px-8 py-6 max-w-[280px]">
+                                                    <td className="px-8 py-4 max-w-[280px]">
                                                          <p 
-                                                            className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-primary transition-colors cursor-help"
+                                                            className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-primary transition-colors"
                                                             title={item.article_description}
                                                          >
                                                             {item.article_description}
                                                          </p>
                                                     </td>
-                                                    <td className="px-8 py-6 text-right font-black text-slate-700 dark:text-slate-300 text-sm italic">{ordered.toLocaleString('en-US', { maximumFractionDigits: 2 })}</td>
-                                                    <td className="px-8 py-6 text-right font-black text-emerald-500 text-sm italic">{delivered.toLocaleString('en-US', { maximumFractionDigits: 2 })}</td>
-                                                    <td className="px-8 py-6 text-right">
+                                                    <td className="px-8 py-4 text-center">
+                                                        <input 
+                                                            type="number"
+                                                            value={item.po_quantity}
+                                                            onChange={(e) => handleChange('po_quantity', e.target.value)}
+                                                            className="w-24 px-3 py-2 text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-black text-slate-700 dark:text-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                                        />
+                                                    </td>
+                                                    <td className="px-8 py-4 text-center">
+                                                        <input 
+                                                            type="number"
+                                                            value={item.delivered_quantity}
+                                                            onChange={(e) => handleChange('delivered_quantity', e.target.value)}
+                                                            className="w-24 px-3 py-2 text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-black text-emerald-500 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                                        />
+                                                    </td>
+                                                    <td className="px-8 py-4 text-right">
                                                         <div className="inline-flex items-center gap-2">
-                                                            {open > 0 && <span className="material-symbols-outlined text-sm text-red-500 animate-bounce">warning</span>}
+                                                            {open > 0 && <span className="material-symbols-outlined text-sm text-red-500">warning</span>}
                                                             <span className={`font-black text-sm italic ${open > 0 ? 'text-red-500' : 'text-slate-400'}`}>{open.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-8 py-6 text-center">
+                                                    <td className="px-8 py-4 text-center">
                                                         <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.unit_of_measure}</span>
                                                     </td>
-                                                    <td className="px-8 py-6 text-center w-32">
-                                                        <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                            <div 
-                                                                className={`h-full rounded-full transition-all duration-1000 ${rate >= 100 ? 'bg-emerald-500' : rate > 0 ? 'bg-amber-500' : 'bg-red-500'}`} 
-                                                                style={{ width: `${rate}%` }}
-                                                            ></div>
-                                                        </div>
+                                                    <td className="px-8 py-4 text-center">
+                                                        {(() => {
+                                                            const currentStatus = item.status || (open === 0 ? 'Fulfilled' : delivered > 0 ? 'Partial' : 'Pending');
+                                                            const getStatusStyles = (status) => {
+                                                                switch (status) {
+                                                                    case 'Fulfilled': return 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800';
+                                                                    case 'Partial': return 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-800';
+                                                                    case 'Pending': return 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800';
+                                                                    case 'Confirm': return 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-800';
+                                                                    case 'Cancelled': return 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-800';
+                                                                    default: return 'bg-slate-50 text-slate-600 border-slate-200';
+                                                                }
+                                                            };
+
+                                                            return (
+                                                                <select
+                                                                    value={currentStatus}
+                                                                    onChange={(e) => handleChange('status', e.target.value)}
+                                                                    className={`px-3 py-1.5 border rounded-lg text-[9px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none text-center cursor-pointer ${getStatusStyles(currentStatus)}`}
+                                                                >
+                                                                    <option value="Confirm">Confirm</option>
+                                                                    <option value="Pending">Pending</option>
+                                                                    <option value="Partial">Partial</option>
+                                                                    <option value="Fulfilled">Fulfilled</option>
+                                                                    <option value="Cancelled">Cancelled</option>
+                                                                </select>
+                                                            );
+                                                        })()}
                                                     </td>
-                                                    <td className="px-8 py-6 text-center">
-                                                        {open === 0 ? (
-                                                            <span className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg text-[9px] font-black uppercase tracking-widest">Fulfilled</span>
-                                                        ) : delivered > 0 ? (
-                                                            <span className="px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg text-[9px] font-black uppercase tracking-widest">Partial</span>
-                                                        ) : (
-                                                            <span className="px-3 py-1 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[9px] font-black uppercase tracking-widest">Pending</span>
-                                                        )}
+                                                    <td className="px-8 py-4 text-center">
+                                                        <button 
+                                                            onClick={() => handleSave(item)}
+                                                            className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 active:scale-95 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center mx-auto"
+                                                        >
+                                                            <span className="material-symbols-outlined text-lg font-bold">save</span>
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             );
@@ -293,6 +361,7 @@ const OrderDetail = () => {
                             <div className="p-8 border-t border-slate-50 dark:border-slate-800 bg-[#F8FAFC]/50 dark:bg-slate-900/50 text-center">
                                 <p className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.5em]">Inventory Sync Verified • Finalizing Document Ledger</p>
                             </div>
+
                         </div>
                     </div>
                 </div>
