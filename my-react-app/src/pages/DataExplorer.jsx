@@ -392,99 +392,39 @@ export default function DataExplorer() {
   const [lastUpdated, setLastUpdated] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Unified state for all APIs
-  const [apis, setApis] = useState({
-     overview: { data: null, loading: true, error: false },
-     deliveryStatus: { data: null, loading: true, error: false },
-     fillRateByType: { data: null, loading: true, error: false },
-     regionComparison: { data: null, loading: true, error: false },
-     openPoAging: { data: null, loading: true, error: false },
-     supplierFillDst: { data: null, loading: true, error: false },
-     topVendorsQty: { data: null, loading: true, error: false },
-     siteFillRate: { data: null, loading: true, error: false },
-     groupPerf: { data: null, loading: true, error: false },
-     aiSignals: { data: null, loading: true, error: false }
+  // Initialise directly from mock data — Edge Functions not yet deployed on Supabase.
+  // Swap this back to API calls once the /functions/v1/analytics/* endpoints are live.
+  const [apis, setApis] = useState(() => {
+    const entries = {};
+    Object.keys(MOCK_DATA).forEach(k => {
+      entries[k] = { data: MOCK_DATA[k], loading: false, error: false };
+    });
+    return entries;
   });
 
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL_1 || 'https://hydnltcftnicbgiuifnk.supabase.co';
-  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY_1;
-
-  const ENDPOINTS = {
-      overview: `${SUPABASE_URL}/functions/v1/analytics/overview`,
-      deliveryStatus: `${SUPABASE_URL}/functions/v1/analytics/delivery-status`,
-      fillRateByType: `${SUPABASE_URL}/functions/v1/analytics/fill-rate-by-po-type`,
-      regionComparison: `${SUPABASE_URL}/functions/v1/analytics/region-comparison`,
-      openPoAging: `${SUPABASE_URL}/functions/v1/analytics/open-po-aging`,
-      supplierFillDst: `${SUPABASE_URL}/functions/v1/analytics/supplier-fill-distribution`,
-      topVendorsQty: `${SUPABASE_URL}/functions/v1/analytics/top-vendors-open-qty`,
-      siteFillRate: `${SUPABASE_URL}/functions/v1/analytics/site-fill-rate`,
-      groupPerf: `${SUPABASE_URL}/functions/v1/analytics/purchasing-group-performance`,
-      aiSignals: `${SUPABASE_URL}/functions/v1/analytics/ai-signals`
-  };
-
-  const fetchEndpoint = async (key) => {
-     setApis(prev => ({...prev, [key]: { ...prev[key], loading: true, error: false }}));
-     try {
-        const res = await fetch(ENDPOINTS[key], {
-            headers: {
-                'Authorization': `Bearer ${SUPABASE_KEY}`,
-                'apikey': SUPABASE_KEY
-            }
-        });
-        if (!res.ok) throw new Error('API failed');
-        const json = await res.json();
-        setApis(prev => ({...prev, [key]: { data: json, loading: false, error: false }}));
-     } catch(e) {
-        if(MOCK_DATA[key]) {
-           // Provide fallback mock data for frontend demonstration if backend 404s
-           setTimeout(() => {
-              setApis(prev => ({...prev, [key]: { data: MOCK_DATA[key], loading: false, error: false }}));
-           }, 400); 
-        } else {
-           setApis(prev => ({...prev, [key]: { ...prev[key], loading: false, error: true }}));
-        }
-     }
+  const fetchEndpoint = (key) => {
+    // Re-load from mock data on individual retry
+    setApis(prev => ({...prev, [key]: { data: MOCK_DATA[key] ?? null, loading: false, error: !MOCK_DATA[key] }}));
   };
 
   const fetchAll = useCallback(async () => {
     setIsRefreshing(true);
-    setApis(prev => {
-        const next = {...prev};
-        Object.keys(ENDPOINTS).forEach(k => {
-            next[k].loading = true;
-            next[k].error = false;
-        });
-        return next;
+    // Simulate a brief refresh animation
+    await new Promise(r => setTimeout(r, 600));
+    setApis(() => {
+      const entries = {};
+      Object.keys(MOCK_DATA).forEach(k => {
+        entries[k] = { data: MOCK_DATA[k], loading: false, error: false };
+      });
+      return entries;
     });
-
-    await Promise.allSettled(Object.keys(ENDPOINTS).map(async (k) => {
-        try {
-            const res = await fetch(ENDPOINTS[k], {
-               headers: {
-                   'Authorization': `Bearer ${SUPABASE_KEY}`,
-                   'apikey': SUPABASE_KEY
-               }
-            });
-            if(!res.ok) throw new Error('API failed');
-            const json = await res.json();
-            setApis(p => ({...p, [k]: { data: json, loading: false, error: false }}));
-        } catch(e) {
-            if(MOCK_DATA[k]) {
-                await new Promise(r => setTimeout(r, 400));
-                setApis(p => ({...p, [k]: { data: MOCK_DATA[k], loading: false, error: false }}));
-            } else {
-                setApis(p => ({...p, [k]: { data: null, loading: false, error: true }}));
-            }
-        }
-    }));
-    
     setIsRefreshing(false);
     setLastUpdated(new Date().toLocaleTimeString('en-US', { hour12: false }));
-  }, []); // eslint-disable-line
+  }, []);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    setLastUpdated(new Date().toLocaleTimeString('en-US', { hour12: false }));
+  }, []);
 
   const kpiData = apis.overview.data;
 
