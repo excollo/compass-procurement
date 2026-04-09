@@ -108,9 +108,11 @@ const DUMMY_ESCALATIONS = [
 /* ─── KPI cards ─────────────────────────────────────────── */
 
 const VendorKpiCard = ({ value }) => (
-  <div className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-slate-100 flex flex-col justify-between h-[120px]">
-    <div className="flex items-center gap-2">
-      <span className="material-symbols-outlined text-[18px] text-emerald-500">group</span>
+  <div className="bg-white p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100/80 flex flex-col justify-between h-[120px]">
+    <div className="flex items-center gap-3">
+      <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
+        <span className="material-symbols-outlined text-[18px] text-white">group</span>
+      </div>
       <span className="text-sm font-semibold text-slate-500">Vendors</span>
     </div>
     <div>
@@ -127,15 +129,17 @@ const VendorKpiCard = ({ value }) => (
   </div>
 );
 
-const MetricCard = ({ icon, label, value, sub, colorClass }) => (
-  <div className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-slate-100 flex flex-col justify-between h-[120px]">
-    <div className="flex items-center gap-2">
-      <span className={`material-symbols-outlined text-[18px] ${colorClass}`}>{icon}</span>
+const MetricCard = ({ icon, label, value, sub, colorClass, isDimmed }) => (
+  <div className={`bg-white p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100/80 flex flex-col justify-between h-[120px] ${isDimmed ? 'opacity-50' : ''}`}>
+    <div className="flex items-center gap-3">
+      <div className={`w-8 h-8 rounded-[10px] flex items-center justify-center ${isDimmed ? 'bg-slate-800' : 'bg-slate-900'}`}>
+        <span className={`material-symbols-outlined text-[18px] ${isDimmed ? 'text-slate-400' : 'text-white'}`}>{icon}</span>
+      </div>
       <span className="text-sm font-semibold text-slate-500">{label}</span>
     </div>
     <div>
       <div className="flex items-baseline">
-        <h3 className={`text-[32px] font-black leading-none ${colorClass}`}>
+        <h3 className={`text-[32px] font-black leading-none ${isDimmed ? 'text-slate-400' : 'text-slate-900'}`}>
           {value === null ? '-' : value}
         </h3>
       </div>
