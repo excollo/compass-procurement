@@ -68,7 +68,7 @@ const Sidebar = () => {
             <NavItem to="/orders" icon="inventory_2" label="Purchase Orders" />
             <NavItem to="/vendors" icon="group" label="Vendors" />
             <NavItem to="/chats" icon="chat_bubble_outline" label="Conversations" />
-            <NavItem icon="warning" label="Escalations" />
+            <NavItem to="/escalations" icon="warning" label="Escalations" />
           </div>
         </div>
 

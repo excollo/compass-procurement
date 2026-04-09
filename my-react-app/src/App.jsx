@@ -5,6 +5,8 @@ import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Chats from './pages/Chats';
 import Vendors from './pages/Vendors';
+import Escalations from './pages/Escalations';
+import EscalationDetail from './pages/EscalationDetail';
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
         <Route path="/orders/:poNum" element={<OrderDetail />} />
         <Route path="/chats" element={<Chats />} />
         <Route path="/vendors" element={<Vendors />} />
+        <Route path="/escalations" element={<Escalations />} />
+        <Route path="/escalations/:id" element={<EscalationDetail />} />
       </Routes>
     </BrowserRouter>
   );
