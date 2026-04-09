@@ -112,14 +112,16 @@ const Vendors = () => {
                                     { label: 'MSMED Registered', value: vendors.filter(v => isMSMERegistered(v.msmed_status)).length || 0, icon: 'verified', colorClass: 'text-indigo-500', sub: 'Registered entities' },
                                     { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || 0, icon: 'public', colorClass: 'text-amber-500', sub: 'Unique locations' },
                                 ].map((stat, i) => (
-                                    <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between h-[120px] hover:-translate-y-0.5 hover:shadow-md transition-all cursor-default">
-                                        <div className="flex items-center gap-2">
-                                            <span className={`material-symbols-outlined text-[18px] ${stat.colorClass}`}>{stat.icon}</span>
+                                    <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px] hover:-translate-y-0.5 hover:shadow-md transition-all cursor-default">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
+                                                <span className="material-symbols-outlined text-[18px] text-white">{stat.icon}</span>
+                                            </div>
                                             <span className="text-sm font-semibold text-slate-500">{stat.label}</span>
                                         </div>
                                         <div>
-                                            <h3 className={`text-[32px] font-black leading-none ${stat.colorClass}`}>
-                                                {loading ? <span className="inline-block w-10 h-6 rounded-lg bg-slate-100 animate-pulse" /> : stat.value}
+                                            <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">
+                                                {loading ? <span className="inline-block w-10 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" /> : stat.value}
                                             </h3>
                                             <p className="text-[13px] text-slate-500 mt-1">{stat.sub}</p>
                                         </div>
