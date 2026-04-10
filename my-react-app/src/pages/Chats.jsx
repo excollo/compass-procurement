@@ -3,6 +3,58 @@ import { useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 import useChatMessages from '../hooks/useChatMessages';
+import { computeResponseSLA, getLatestCommunicationState } from '../lib/slaUtils';
+import { useSLATimer } from '../hooks/useSLATimer';
+
+function CommunicationStateBadge({ state }) {
+  const config = {
+    pending: {
+      label: 'Awaiting Start',
+      bg: '#F9FAFB',
+      color: '#9CA3AF'
+    },
+    waiting_vendor: {
+      label: 'Waiting on Vendor',
+      bg: '#F3F4F6',
+      color: '#6B7280'
+    },
+    action_required: {
+      label: 'Action Required',
+      bg: '#F0FDF4',
+      color: '#16A34A'
+    },
+    human_controlled: {
+      label: 'Human Controlled',
+      bg: '#EFF6FF',
+      color: '#2563EB'
+    },
+    escalated: {
+      label: 'Escalated',
+      bg: '#FEF2F2',
+      color: '#DC2626'
+    },
+    resolved: {
+      label: 'Resolved',
+      bg: '#F0FDF4',
+      color: '#16A34A'
+    },
+  }
+  const c = config[state] || config.pending
+  return (
+    <span style={{
+      fontSize: '10px',
+      fontWeight: 700,
+      padding: '2px 7px',
+      borderRadius: '4px',
+      background: c.bg,
+      color: c.color,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em'
+    }}>
+      {c.label}
+    </span>
+  )
+}
 
 // Format a timestamp to h:mm AM/PM
 const formatTime = (timestamp) => {
@@ -151,6 +203,13 @@ const Chats = () => {
   const [poData, setPoData] = useState([]);
   const [selectedPo, setSelectedPo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [messagesByPO, setMessagesByPO] = useState({});
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [threadState, setThreadState] = useState('bot_active');
+  const [takingOver, setTakingOver] = useState(false);
+  const [handingBack, setHandingBack] = useState(false);
+  const tick = useSLATimer();
   const messagesEndRef = useRef(null);
   const [searchParams] = useSearchParams();
 
@@ -195,6 +254,23 @@ const Chats = () => {
         });
         setPoData(uniquePOs);
 
+        // Fetch chat messages for all sidebar POs
+        const poNums = uniquePOs.map(p => p.po_num);
+
+        const { data: allMessages } = await supabase
+          .from('chat_history')
+          .select('po_num, sender_type, sent_at, communication_state')
+          .in('po_num', poNums)
+          .order('sent_at', { ascending: true });
+
+        const grouped = {};
+        allMessages?.forEach(msg => {
+          if (!grouped[msg.po_num]) grouped[msg.po_num] = [];
+          grouped[msg.po_num].push(msg);
+        });
+
+        setMessagesByPO(grouped);
+
         // If coming from Dashboard with ?po=XXXX, open that PO
         const requestedPo = searchParams.get('po');
         const match = requestedPo && uniquePOs.find(p => p.po_num === requestedPo);
@@ -204,7 +280,219 @@ const Chats = () => {
     };
 
     fetchPOData();
+
+    // Subscribe to all chat history changes to keep sidebar live
+    const globalChannel = supabase
+      .channel('global-chat-history')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_history' },
+        (payload) => {
+          const msg = payload.new;
+          setMessagesByPO(prev => {
+            const current = prev[msg.po_num] || [];
+            return {
+              ...prev,
+              [msg.po_num]: [...current, msg]
+            };
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(globalChannel);
+    };
   }, [searchParams]);
+
+  // Fetch thread_state when selected PO changes
+  useEffect(() => {
+    if (!selectedPo?.po_num) return;
+
+    const fetchThreadState = async () => {
+      const { data, error } = await supabase
+        .from('selected_open_po_line_items')
+        .select('thread_state')
+        .eq('po_num', selectedPo.po_num)
+        .maybeSingle();
+
+      if (data) {
+        setThreadState(data.thread_state || 'bot_active');
+      }
+    };
+
+    fetchThreadState();
+  }, [selectedPo?.po_num]);
+
+  // Real-time thread_state subscription
+  useEffect(() => {
+    if (!selectedPo?.po_num) return;
+
+    const channel = supabase
+      .channel(`thread-state-${selectedPo.po_num}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'selected_open_po_line_items',
+          filter: `po_num=eq.${selectedPo.po_num}`
+        },
+        (payload) => {
+          if (payload.new.thread_state) {
+            setThreadState(payload.new.thread_state);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedPo?.po_num]);
+
+  const handleTakeOver = async () => {
+    if (!selectedPo?.po_num) return;
+    setTakingOver(true);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_VENDOR_BACKEND_URL}/api/takeover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          po_num: selectedPo.po_num,
+          operator_name: 'Alex Rivera'
+        })
+      });
+
+      if (!res.ok) throw new Error(`Takeover failed: ${res.status}. Check if your backend is running.`);
+      
+      // Optimistic update for better UX
+      setThreadState('human_controlled');
+      console.log(`✅ Took over PO ${selectedPo.po_num}`);
+    } catch (err) {
+      console.error('Takeover failed:', err);
+      alert(`Takeover failed. Please ensure VITE_VENDOR_BACKEND_URL is set in .env and the backend is running at ${import.meta.env.VITE_VENDOR_BACKEND_URL}`);
+    } finally {
+      setTakingOver(false);
+    }
+  };
+
+  const handleHandBack = async () => {
+    if (!selectedPo?.po_num) return;
+    setHandingBack(true);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_VENDOR_BACKEND_URL}/api/handback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          po_num: selectedPo.po_num,
+          operator_name: 'Alex Rivera'
+        })
+      });
+
+      if (!res.ok) throw new Error(`Hand back failed: ${res.status}`);
+      
+      setThreadState('bot_active');
+      console.log(`✅ Bot resumed for PO ${selectedPo.po_num}`);
+    } catch (err) {
+      console.error('Hand back failed:', err);
+      alert('Hand back failed. Check backend logs.');
+    } finally {
+      setHandingBack(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedPo || sending) return;
+    
+    setSending(true);
+    const messageText = newMessage.trim();
+    setNewMessage(''); // Clear immediately for UX
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_VENDOR_BACKEND_URL}/api/chat-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          po_id: selectedPo.po_num,
+          sender_type: 'operator',
+          sender_label: 'Compass Procurement Team',
+          message_text: messageText,
+          vendor_phone: selectedPo.vendor_phone || '',
+          supplier_name: selectedPo.vendor_name || '',
+          intent: null,
+          escalate: false
+        })
+      });
+
+      if (!res.ok) throw new Error(`Send failed: ${res.status}`);
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setNewMessage(messageText); // Restore on failure
+      alert('Failed to send message');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Auto-escalation logic
+  const escalatePO = async (po, sla) => {
+    try {
+      // Check if already escalated
+      const { data: existing } = await supabase
+        .from('escalations')
+        .select('id')
+        .eq('po_num', po.po_num)
+        .eq('status', 'open')
+        .maybeSingle();
+
+      if (existing) return; // Already escalated
+
+      // Insert new escalation
+      await supabase
+        .from('escalations')
+        .insert([{
+          po_num: po.po_num,
+          vendor_code: po.vendor_code,
+          vendor_name: po.vendor_name,
+          delivery_site: po.delivery_site || 'TBD',
+          delivery_date: po.delivery_date,
+          escalation_reason: 'no_response',
+          reason_detail: `Vendor has not responded for ${sla.label}. Automatically escalated by Compass.`,
+          priority: 'critical',
+          status: 'open',
+          vendor_sla_applies: true,
+          vendor_sla_hours: 0.5,
+          last_bot_message_at: new Date(Date.now() - sla.elapsedMs).toISOString(),
+          category: 'Communication',
+          operator_sla_hours: 2, // Default operator SLA
+          escalation_created_at: new Date().toISOString(),
+          ai_summary: `PO-${po.po_num} has a severe communication delay. The vendor, ${po.vendor_name}, has not responded to the last bot outreach within the required 30-minute window.`
+        }]);
+
+      console.log(`Auto-escalated PO-${po.po_num}`);
+    } catch (err) {
+      console.error('Auto-escalation error:', err);
+    }
+  };
+
+  // Check for breaches every 10 seconds
+  useEffect(() => {
+    const checkBreaches = () => {
+      poData.forEach(po => {
+        const messages = messagesByPO[po.po_num] || [];
+        const sla = computeResponseSLA(messages, 0.5);
+        if (sla && sla.breached) {
+          escalatePO(po, sla);
+        }
+      });
+    };
+
+    const interval = setInterval(checkBreaches, 10000);
+    return () => clearInterval(interval);
+  }, [poData, messagesByPO]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background max-h-screen">
@@ -237,19 +525,73 @@ const Chats = () => {
                     <span className={`text-[10px] font-bold uppercase tracking-widest ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
                       PO-{po.po_num}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isActive ? 'bg-error-container text-on-error-container' : 'bg-surface-container-highest text-on-surface-variant'
-                      }`}>
-                      {isActive ? 'HIGH RISK' : 'Awaiting'}
-                    </span>
                   </div>
                   <h3 className="font-bold text-sm text-on-surface truncate">{po.vendor_name}</h3>
-                  <p className="text-xs text-on-surface-variant mt-1 line-clamp-1">Status update check...</p>
-                  {isActive && (
-                    <div className="flex items-center gap-2 mt-3">
-                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                      <span className="text-[10px] font-semibold text-primary uppercase">Live Thread</span>
-                    </div>
-                  )}
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '8px',
+                    paddingTop: '8px',
+                    borderTop: '0.5px solid #F3F4F6'
+                  }}>
+
+                    {/* left: communication state */}
+                    <CommunicationStateBadge
+                      state={getLatestCommunicationState(messagesByPO[po.po_num] || [])}
+                    />
+
+                    {/* right: SLA timer — only show if vendor hasn't replied yet */}
+                    {(() => {
+                      const sla = computeResponseSLA(messagesByPO[po.po_num] || [], 0.5)
+                      if (!sla) return null
+
+                      const color = sla.color === 'red'
+                        ? '#DC2626'
+                        : sla.color === 'amber'
+                        ? '#D97706'
+                        : '#16A34A'
+
+                      return (
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}>
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 11 11"
+                            fill="none"
+                            style={{ flexShrink: 0 }}
+                          >
+                            <circle
+                              cx="5.5"
+                              cy="5.5"
+                              r="4.5"
+                              stroke="currentColor"
+                              strokeWidth="1.2"
+                            />
+                            <path
+                              d="M5.5 3v2.5L7 7"
+                              stroke="currentColor"
+                              strokeWidth="1.2"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          {sla.label} 
+                          <span style={{ opacity: 0.5, marginLeft: '2px', fontWeight: 500 }}>
+                            / {sla.windowLabel}
+                          </span>
+                        </span>
+                      )
+                    })()}
+
+                  </div>
                 </div>
               );
             })}
@@ -271,8 +613,10 @@ const Chats = () => {
                   <div>
                     <h2 className="text-sm font-bold text-on-surface">{selectedPo.vendor_name} - Support</h2>
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span>
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Human Intervention Mode</span>
+                      <span className={`w-2 h-2 rounded-full ${threadState === 'human_controlled' ? 'bg-blue-500' : 'bg-primary'}`}></span>
+                      <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
+                        {threadState === 'human_controlled' ? 'Human Intervention Mode' : 'AI Assistant Active'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -290,6 +634,30 @@ const Chats = () => {
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-[#fafbfd]">
+                  {/* Human Controlled Banner */}
+                  {threadState === 'human_controlled' && (
+                    <div style={{
+                      background: '#EFF6FF',
+                      border: '0.5px solid #BFDBFE',
+                      borderRadius: '6px',
+                      padding: '8px 14px',
+                      marginBottom: '12px',
+                      fontSize: '12px',
+                      color: '#1D4ED8',
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      flexShrink: 0
+                    }}>
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                        <circle cx="6.5" cy="6.5" r="5.5" stroke="#1D4ED8" strokeWidth="1.2"/>
+                        <path d="M6.5 4v3M6.5 9v.4" stroke="#1D4ED8" strokeWidth="1.2" strokeLinecap="round"/>
+                      </svg>
+                      You are in control — bot is paused. Messages you send go directly to the vendor.
+                    </div>
+                  )}
+
                   {/* ── Compass opening message (always first) ── */}
                   <CompassOpeningMessage po={selectedPo} />
 
@@ -315,15 +683,40 @@ const Chats = () => {
               <footer className="p-6 bg-white border-t border-outline-variant/10 flex-shrink-0 mt-auto">
                 <div className="flex items-end gap-4 max-w-5xl mx-auto">
                   <div className="flex-1 relative">
-                    <textarea className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 pr-12 focus:ring-2 focus:ring-primary/20 resize-none text-sm" placeholder="Type a message..." rows="1"></textarea>
+                    <textarea 
+                      className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 pr-12 focus:ring-2 focus:ring-primary/20 resize-none text-sm" 
+                      placeholder={
+                        threadState === 'human_controlled'
+                          ? "Type a message..."
+                          : "Take over chat to send messages manually"
+                      }
+                      rows="1"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey && threadState === 'human_controlled') {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      disabled={sending || threadState !== 'human_controlled'}
+                      style={{
+                        opacity: threadState !== 'human_controlled' ? 0.6 : 1,
+                        cursor: threadState !== 'human_controlled' ? 'not-allowed' : 'text'
+                      }}
+                    />
                     <div className="absolute right-4 bottom-3.5 flex gap-2">
                       <button className="text-on-surface-variant/60 hover:text-primary transition-all">
                         <span className="material-symbols-outlined text-xl">attach_file</span>
                       </button>
                     </div>
                   </div>
-                  <button className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all">
-                    <span className="material-symbols-outlined">send</span>
+                  <button 
+                    onClick={handleSendMessage}
+                    disabled={sending || !newMessage.trim()}
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-all ${sending || !newMessage.trim() ? 'bg-slate-300 shadow-none' : 'bg-primary shadow-primary/30 hover:scale-105 active:scale-95'}`}
+                  >
+                    <span className="material-symbols-outlined">{sending ? 'sync' : 'send'}</span>
                   </button>
                 </div>
               </footer>
@@ -361,23 +754,44 @@ const Chats = () => {
 
               <div className="p-6 flex flex-col gap-3">
                 <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Operator Controls</h3>
-                <button className="w-full py-3.5 px-4 bg-surface-container-highest/50 text-on-surface font-bold text-xs rounded-xl flex items-center justify-between group hover:bg-surface-container-highest transition-all">
-                  <span className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg">pan_tool</span>
-                    Take Over Chat
-                  </span>
-                  <span className="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-all">chevron_right</span>
-                </button>
-                <button className="w-full py-3.5 px-4 bg-primary text-white font-bold text-xs rounded-xl flex items-center justify-between shadow-lg shadow-primary/20 hover:bg-primary-container transition-all">
-                  <span className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg">smart_toy</span>
-                    Hand Back to Bot
-                  </span>
-                </button>
-                <button className="w-full py-3.5 px-4 bg-surface-container-highest/50 text-error font-bold text-xs rounded-xl flex items-center gap-2 hover:bg-error-container transition-all">
-                  <span className="material-symbols-outlined text-lg">pause_circle</span>
-                  Pause Bot Completely
-                </button>
+                
+                {(threadState === 'bot_active' || threadState === 'pending') && (
+                  <button 
+                    onClick={handleTakeOver}
+                    disabled={takingOver}
+                    className="w-full py-3.5 px-4 bg-surface-container-highest/50 text-on-surface font-bold text-xs rounded-xl flex items-center justify-between group hover:bg-surface-container-highest transition-all disabled:opacity-50"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-lg">pan_tool</span>
+                      {takingOver ? 'Taking over...' : 'Take Over Chat'}
+                    </span>
+                    <span className="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-all">chevron_right</span>
+                  </button>
+                )}
+
+                {threadState === 'human_controlled' && (
+                  <button 
+                    onClick={handleHandBack}
+                    disabled={handingBack}
+                    className="w-full py-3.5 px-4 bg-primary text-white font-bold text-xs rounded-xl flex items-center justify-between shadow-lg shadow-primary/20 hover:bg-primary-container transition-all disabled:opacity-50"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-lg">smart_toy</span>
+                      {handingBack ? 'Generating context...' : 'Hand Back to Bot'}
+                    </span>
+                  </button>
+                )}
+
+                {(threadState === 'bot_active' || threadState === 'pending') && (
+                  <button 
+                    onClick={handleTakeOver}
+                    disabled={takingOver}
+                    className="w-full py-3.5 px-4 bg-surface-container-highest/50 text-error font-bold text-xs rounded-xl flex items-center gap-2 hover:bg-error-container transition-all disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-lg">pause_circle</span>
+                    {takingOver ? 'Pausing Bot...' : 'Pause Bot Completely'}
+                  </button>
+                )}
                 <div className="mt-4 pt-4 border-t border-outline-variant/10">
                   <button className="w-full py-3.5 px-4 bg-green-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-600/10 hover:bg-green-700 transition-all">
                     <span className="material-symbols-outlined text-lg">check_circle</span>

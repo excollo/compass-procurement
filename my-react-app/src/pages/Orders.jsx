@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
+import { computeResponseSLA } from '../lib/slaUtils';
+import { useSLATimer } from '../hooks/useSLATimer';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
@@ -11,6 +13,20 @@ const formatDate = (dateStr) => {
   const MM = String(d.getMonth() + 1).padStart(2, '0');
   const YYYY = d.getFullYear();
   return `${DD}-${MM}-${YYYY}`;
+};
+
+const convertToInputDate = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d)) {
+    // If it's already in DD-MM-YYYY (common in this app), convert to YYYY-MM-DD
+    const parts = dateStr.split('-');
+    if (parts.length === 3 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return '';
+  }
+  return d.toISOString().split('T')[0];
 };
 
 const COMM_STATES = [
@@ -32,7 +48,11 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [messagesByPO, setMessagesByPO] = useState({});
+  const tick = useSLATimer();
   const [searchTerm, setSearchTerm] = useState('');
+  const [localEdits, setLocalEdits] = useState({});
+  const [updatingPo, setUpdatingPo] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -109,12 +129,109 @@ const Orders = () => {
       }
 
       setOrders(uniquePOs);
+
+      // Fetch chat messages for all POs
+      const poNums = uniquePOs.map(o => o.po_num);
+
+      const { data: allMessages } = await supabase
+        .from('chat_history')
+        .select('po_num, sender_type, sent_at')
+        .in('po_num', poNums);
+
+      const grouped = {};
+      allMessages?.forEach(msg => {
+        if (!grouped[msg.po_num]) grouped[msg.po_num] = [];
+        grouped[msg.po_num].push(msg);
+      });
+
+      setMessagesByPO(grouped);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleUpdatePO = async (po_num) => {
+    const edit = localEdits[po_num];
+    if (!edit) return;
+    
+    try {
+      setUpdatingPo(po_num);
+      
+      // Update both tables for data integrity
+      const { error: err1 } = await supabase
+        .from('open_po_detail')
+        .update({ 
+          status: edit.status, 
+          delivery_date: edit.delivery_date 
+        })
+        .eq('po_num', po_num);
+
+      if (err1) throw err1;
+
+      const { error: err2 } = await supabase
+        .from('selected_open_po_line_items')
+        .update({ 
+          status: edit.status, 
+          delivery_date: edit.delivery_date 
+        })
+        .eq('po_num', po_num);
+
+      if (err2) throw err2;
+
+      // Update local master list
+      setOrders(prev => prev.map(o => o.po_num === po_num ? { ...o, ...edit } : o));
+      
+      // Clear edit state
+      const newEdits = { ...localEdits };
+      delete newEdits[po_num];
+      setLocalEdits(newEdits);
+      
+      alert(`PO #${po_num} updated successfully.`);
+    } catch (err) {
+      console.error('Update failed:', err);
+      alert('Failed to update PO: ' + err.message);
+    } finally {
+      setUpdatingPo(null);
+    }
+  };
+
+  const handleLocalChange = (po_num, field, value) => {
+    const po = orders.find(o => o.po_num === po_num);
+    setLocalEdits(prev => ({
+      ...prev,
+      [po_num]: {
+        ...(prev[po_num] || { status: po.status, delivery_date: po.delivery_date }),
+        [field]: value
+      }
+    }));
+  };
+
+  useEffect(() => {
+    // Subscribe to all chat history changes to keep table live
+    const globalChannel = supabase
+      .channel('orders-chat-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_history' },
+        (payload) => {
+          const msg = payload.new;
+          setMessagesByPO(prev => {
+            const current = prev[msg.po_num] || [];
+            return {
+              ...prev,
+              [msg.po_num]: [...current, msg]
+            };
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(globalChannel);
+    };
+  }, []);
 
   const vendorsList = ['All Vendors', ...new Set(orders.map(o => o.vendor_name).filter(Boolean))];
 
@@ -161,7 +278,7 @@ const Orders = () => {
       acc.atRisk++;
     }
     
-    if (commState === 'awaiting_response') {
+    if (computeResponseSLA(messagesByPO[po.po_num] || [], 0.5) !== null) {
       acc.awaitingResponse++;
     }
     
@@ -321,6 +438,8 @@ const Orders = () => {
                     <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Delivery ETD</th>
                     <th className="text-center px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">PO Status</th>
                     <th className="text-center px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Communication State</th>
+                    <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Response SLA</th>
+                    <th className="text-center px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -332,9 +451,13 @@ const Orders = () => {
                     <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">No document telemetry found for this context.</td></tr>
                   ) : (
                     paginatedOrders.map((po, idx) => {
+                      const currentEdit = localEdits[po.po_num];
+                      const displayDate = currentEdit ? currentEdit.delivery_date : po.delivery_date;
+                      const displayStatus = currentEdit ? currentEdit.status : (po.status || 'Open');
+
                       let etdColor = "text-slate-500 font-medium";
-                      if (po.delivery_date) {
-                        const etd = new Date(po.delivery_date);
+                      if (displayDate) {
+                        const etd = new Date(displayDate);
                         etd.setHours(0,0,0,0);
                         const diffTime = etd - today;
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -347,20 +470,20 @@ const Orders = () => {
                         }
                       }
 
-                      const statusStr = po.status || 'Open';
+                      const statusStr = displayStatus;
                       let statusBadge = "bg-slate-100 text-slate-500";
                       if (statusStr.toLowerCase() === 'confirmed') statusBadge = "bg-emerald-50 text-emerald-600 border-emerald-100";
                       else if (statusStr.toLowerCase() === 'at_risk' || statusStr.toLowerCase() === 'at-risk') statusBadge = "bg-amber-50 text-amber-600 border-amber-100";
+                      else if (statusStr.toLowerCase() === 'cancelled') statusBadge = "bg-red-50 text-red-600 border-red-100";
                       
                       const cState = getCommState(po.communication_state);
 
                       return (
                         <tr 
                           key={po.po_num + '-' + idx} 
-                          onClick={() => navigate('/orders/' + po.po_num)} 
                           className="hover:bg-slate-50/80 dark:hover:bg-slate-800/5 transition-all cursor-pointer group border-l-4 border-transparent hover:border-primary active:bg-slate-100"
                         >
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4" onClick={() => navigate('/orders/' + po.po_num)}>
                                <Link 
                                   to={`/orders/${po.po_num}`} 
                                   className="text-sm font-black text-slate-900 dark:text-white tracking-widest hover:text-primary transition-colors underline decoration-2 underline-offset-4 decoration-primary/20 hover:decoration-primary"
@@ -369,22 +492,114 @@ const Orders = () => {
                                    #{po.po_num}
                                </Link>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4" onClick={() => navigate('/orders/' + po.po_num)}>
                             <div className="flex flex-col">
                               <span className="text-xs font-black text-slate-700 dark:text-slate-200 tracking-tight">{po.vendor_name}</span>
                               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Verified Partner</span>
                             </div>
                           </td>
-                          <td className={`px-6 py-4 text-xs italic ${etdColor}`}>{formatDate(po.delivery_date) || 'TBD'}</td>
-                          <td className="px-6 py-4 text-center">
-                              <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${statusBadge}`}>
-                                  {statusStr.replace('_', ' ')}
-                              </span>
+                          <td className="px-6 py-4">
+                            <div className="relative flex items-center gap-2 group/date max-w-fit cursor-pointer">
+                              <input 
+                                type="date"
+                                value={convertToInputDate(displayDate)}
+                                onChange={(e) => handleLocalChange(po.po_num, 'delivery_date', e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className={`bg-transparent border-none p-0 text-xs italic cursor-pointer focus:ring-0 z-10 ${etdColor} group-hover/date:underline [color-scheme:light] appearance-none`}
+                                style={{ WebkitAppearance: 'none' }}
+                              />
+                              <span className="material-symbols-outlined text-sm text-slate-300 group-hover/date:text-primary transition-colors" onClick={(e) => {
+                                e.stopPropagation();
+                                const input = e.currentTarget.parentElement.querySelector('input');
+                                if (input.showPicker) input.showPicker();
+                              }}>calendar_month</span>
+                            </div>
                           </td>
                           <td className="px-6 py-4 text-center">
+                            <div className="relative inline-block group/status">
+                              <select 
+                                value={displayStatus}
+                                onChange={(e) => handleLocalChange(po.po_num, 'status', e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className={`px-3 py-1 pr-6 rounded-lg text-[9px] font-black uppercase tracking-widest border focus:ring-2 focus:ring-primary/20 appearance-none text-center cursor-pointer transition-all ${statusBadge}`}
+                              >
+                                <option value="Open">Open</option>
+                                <option value="Confirmed">Confirmed</option>
+                                <option value="Partial">Partial</option>
+                                <option value="Fulfilled">Fulfilled</option>
+                                <option value="Cancelled">Cancelled</option>
+                              </select>
+                              <span className="material-symbols-outlined text-[14px] absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-current opacity-70">arrow_drop_down</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center" onClick={() => navigate('/orders/' + po.po_num)}>
                               <span className={`px-2.5 py-1 rounded-[6px] text-[11px] font-medium inline-flex items-center justify-center whitespace-nowrap ${cState.bg} ${cState.text}`}>
                                   {cState.label}
                               </span>
+                          </td>
+                          {(() => {
+                            const sla = computeResponseSLA(messagesByPO[po.po_num] || [], 0.5)
+
+                            if (!sla) {
+                              return (
+                                <td style={{ color: '#9CA3AF', fontSize: '13px' }}>
+                                  —
+                                </td>
+                              )
+                            }
+
+                            const color = sla.color === 'red'
+                              ? '#DC2626'
+                              : sla.color === 'amber'
+                              ? '#D97706'
+                              : '#16A34A'
+
+                            return (
+                              <td className="px-6 py-4">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ fontSize: '12px', fontWeight: 600, color }}>
+                                      {sla.label}
+                                      <span style={{ opacity: 0.5, fontWeight: 500, fontSize: '11px' }}> / {sla.windowLabel}</span>
+                                      {' '}elapsed
+                                    </span>
+                                    <div style={{
+                                      width: '60px',
+                                      height: '3px',
+                                      background: '#F3F4F6',
+                                      borderRadius: '2px',
+                                      overflow: 'hidden',
+                                      flexShrink: 0
+                                    }}>
+                                      <div style={{
+                                        height: '100%',
+                                        width: `${Math.round(sla.progress)}%`,
+                                        background: color,
+                                        borderRadius: '2px'
+                                      }} />
+                                    </div>
+                                  </div>
+                                  <span style={{ fontSize: '10px', color: '#9CA3AF' }}>
+                                    Last msg: {sla.lastBotFormatted}
+                                  </span>
+                                </div>
+                              </td>
+                            )
+                          })()}
+                          <td className="px-6 py-4 text-center">
+                            {currentEdit ? (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleUpdatePO(po.po_num); }}
+                                disabled={updatingPo === po.po_num}
+                                className="p-2 bg-primary text-white rounded-lg hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center justify-center mx-auto"
+                              >
+                                <span className={`material-symbols-outlined text-[18px] ${updatingPo === po.po_num ? 'animate-spin' : ''}`}>
+                                  {updatingPo === po.po_num ? 'sync' : 'save'}
+                                </span>
+                              </button>
+                            ) : (
+                              <span className="material-symbols-outlined text-slate-200 text-sm">edit</span>
+                            )}
                           </td>
                         </tr>
                       );
@@ -414,6 +629,10 @@ const Orders = () => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .font-headline { font-family: 'Outfit', sans-serif; }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          display: none;
+          -webkit-appearance: none;
+        }
       `}} />
     </div>
   );

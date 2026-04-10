@@ -5,6 +5,9 @@ import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Chats from './pages/Chats';
 import Vendors from './pages/Vendors';
+import Escalations from './pages/Escalations';
+import EscalationDetail from './pages/EscalationDetail';
+import DataExplorer from './pages/DataExplorer';
 
 function App() {
   return (
