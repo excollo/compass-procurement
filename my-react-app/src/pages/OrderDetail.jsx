@@ -80,6 +80,35 @@ const OrderDetail = () => {
                 delivery_date: headerDeliveryDate
             })));
 
+            // 4. Build bot notification message based on what changed
+            const changes = [];
+
+            if (headerDeliveryDate !== header.delivery_date) {
+                const formattedDate = headerDeliveryDate
+                    ? new Date(headerDeliveryDate).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    })
+                    : headerDeliveryDate;
+                changes.push(`Delivery date updated to *${formattedDate}*`);
+            }
+
+            if (headerStatus !== header.status) {
+                changes.push(`PO status changed to *${headerStatus}*`);
+            }
+
+            if (changes.length > 0) {
+                const changeText = changes.join(' and ');
+                const message =
+                    `📋 *PO Update — #${poNum}*\n\n` +
+                    `${changeText}.\n\n` +
+                    `Please confirm you can accommodate this update. ` +
+                    `Reply with any concerns.`;
+
+                await sendBotUpdateMessage(message);
+            }
+
             alert('PO Header updated successfully across all items.');
         } catch (err) {
             console.error('Header update failed:', err);
@@ -156,6 +185,65 @@ const OrderDetail = () => {
         etd.setHours(0,0,0,0);
         daysDiff = Math.ceil((etd - todayDate) / (1000 * 60 * 60 * 24));
     }
+
+    const sendBotUpdateMessage = async (messageText) => {
+        const PILOT_POS = [
+            '4100259330',
+            '4100260294',
+            '4100260367',
+            '4100260584',
+            '4100260654'
+        ];
+
+        if (!PILOT_POS.includes(poNum)) {
+            console.log(`ℹ️ PO #${poNum} is not in Pilot list — skipping bot notification`);
+            return;
+        }
+
+        try {
+            const vendorBackendUrl = import.meta.env.VITE_VENDOR_BACKEND_URL;
+
+            if (!vendorBackendUrl) {
+                console.warn('⚠️ VITE_VENDOR_BACKEND_URL not set — skipping bot notification');
+                return;
+            }
+
+            // fetch vendor phone from selected_open_po_line_items
+            const { data: poRecord } = await supabase
+                .from('selected_open_po_line_items')
+                .select('vendor_phone, vendor_name')
+                .eq('po_num', poNum)
+                .single();
+
+            const vendorPhone = poRecord?.vendor_phone || '';
+            const supplierName = poRecord?.vendor_name || header?.vendor_name || '';
+
+            const response = await fetch(`${vendorBackendUrl}/api/chat-message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    po_id: poNum,
+                    sender_type: 'bot',
+                    sender_label: 'Compass Bot',
+                    message_text: messageText,
+                    vendor_phone: vendorPhone,
+                    supplier_name: supplierName,
+                    intent: 'PO_UPDATE',
+                    escalate: false,
+                    admin_message: ''
+                })
+            });
+
+            if (!response.ok) {
+                console.error('❌ Bot notification failed:', response.status);
+            } else {
+                console.log('✅ Bot notified vendor of PO update:', messageText.slice(0, 60));
+            }
+        } catch (err) {
+            // never block the save — just log the error
+            console.error('❌ sendBotUpdateMessage error:', err.message);
+        }
+    };
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
@@ -329,6 +417,7 @@ const OrderDetail = () => {
                                             
                                             const handleSave = async (rowData) => {
                                                 try {
+                                                    // 1. Save to open_po_detail (existing — do not change)
                                                     const { error } = await supabase
                                                         .from('open_po_detail')
                                                         .update({
@@ -341,6 +430,26 @@ const OrderDetail = () => {
                                                         .eq('po_item', rowData.po_item);
 
                                                     if (error) throw error;
+
+                                                    // 2. Build bot notification message for this line item
+                                                    const itemName = rowData.article_description || `Item #${Number(rowData.po_item) / 10}`;
+                                                    const orderedQty = parseFloat(rowData.po_quantity || 0).toFixed(2);
+                                                    const deliveredQty = parseFloat(rowData.delivered_quantity || 0).toFixed(2);
+                                                    const openQty = parseFloat(rowData.open_quantity || 0).toFixed(2);
+                                                    const uom = rowData.unit_of_measure || '';
+                                                    const itemStatus = rowData.status || '';
+
+                                                    const message =
+                                                        `📦 *PO Line Item Update — #${rowData.po_num}*\n\n` +
+                                                        `*Item:* ${itemName}\n` +
+                                                        `*Ordered:* ${orderedQty} ${uom}\n` +
+                                                        `*Delivered:* ${deliveredQty} ${uom}\n` +
+                                                        `*Open Qty:* ${openQty} ${uom}\n` +
+                                                        `*Status:* ${itemStatus}\n\n` +
+                                                        `Please review and confirm if you can fulfil the remaining quantity.`;
+
+                                                    await sendBotUpdateMessage(message);
+
                                                     alert('Row updated successfully');
                                                 } catch (err) {
                                                     console.error('Error updating row:', err);

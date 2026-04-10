@@ -221,6 +221,7 @@ const Chats = () => {
   const [threadState, setThreadState] = useState('bot_active');
   const [takingOver, setTakingOver] = useState(false);
   const [handingBack, setHandingBack] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const tick = useSLATimer();
   const messagesEndRef = useRef(null);
   const [searchParams] = useSearchParams();
@@ -293,6 +294,36 @@ const Chats = () => {
 
     fetchPOData();
 
+    // fetch unread count on mount
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('escalations')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'open');
+      setUnreadCount(count || 0);
+    };
+    fetchCount();
+
+    // Realtime subscription for topbar badge
+    const notificationChannel = supabase
+      .channel('chats-topbar-notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'escalations'
+      }, () => {
+        setUnreadCount(prev => prev + 1);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'escalations',
+        filter: 'status=eq.resolved'
+      }, () => {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      })
+      .subscribe();
+
     // Subscribe to all chat history changes to keep sidebar live
     const globalChannel = supabase
       .channel('global-chat-history')
@@ -314,6 +345,7 @@ const Chats = () => {
 
     return () => {
       supabase.removeChannel(globalChannel);
+      supabase.removeChannel(notificationChannel);
     };
   }, [searchParams]);
 
@@ -506,6 +538,68 @@ const Chats = () => {
     return () => clearInterval(interval);
   }, [poData, messagesByPO]);
 
+  // Bot escalation sync watcher
+  useEffect(() => {
+    if (!selectedPo) return;
+
+    const messages = messagesByPO[selectedPo.po_num] || [];
+    const latestBotMsg = [...messages].reverse().find(m => m.sender_type === 'bot' || m.sender_type === 'assistant');
+
+    if (latestBotMsg && latestBotMsg.escalate === true && threadState !== 'escalated') {
+      console.log('🗳️ Bot escalation detected, syncing DB...');
+      
+      const syncEscalation = async () => {
+        try {
+          // 1. Update PO thread_state to escalated
+          await supabase
+            .from('selected_open_po_line_items')
+            .update({ thread_state: 'escalated' })
+            .eq('po_num', selectedPo.po_num);
+
+          // 2. Ensure record exists in escalations table
+          const { data: existing } = await supabase
+            .from('escalations')
+            .select('id')
+            .eq('po_num', selectedPo.po_num)
+            .eq('status', 'open')
+            .maybeSingle();
+
+          if (!existing) {
+            const reasonMap = {
+              'PARTIAL': 'partial_delivery',
+              'DELAY': 'delivery_delay',
+              'REJECTED': 'order_rejected',
+              'PRICING': 'pricing_issue'
+            };
+            
+            await supabase
+              .from('escalations')
+              .insert([{
+                po_num: selectedPo.po_num,
+                vendor_code: selectedPo.vendor_code,
+                vendor_name: selectedPo.vendor_name,
+                delivery_site: selectedPo.delivery_site || 'TBD',
+                delivery_date: selectedPo.delivery_date,
+                escalation_reason: reasonMap[latestBotMsg.intent] || 'other',
+                reason_detail: latestBotMsg.message_text,
+                priority: latestBotMsg.intent === 'REJECTED' ? 'critical' : 'high',
+                status: 'open',
+                escalation_created_at: new Date().toISOString(),
+                ai_summary: latestBotMsg.admin_message || latestBotMsg.message_text
+              }]);
+          }
+
+          // Update local state
+          setThreadState('escalated');
+        } catch (err) {
+          console.error('Failed to sync bot escalation:', err);
+        }
+      };
+
+      syncEscalation();
+    }
+  }, [selectedPo, messagesByPO, threadState]);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background max-h-screen">
       <Sidebar />
@@ -631,6 +725,47 @@ const Chats = () => {
                       </span>
                     </div>
                   </div>
+                </div>
+
+                <div
+                  onClick={() => navigate('/notifications')}
+                  style={{
+                    position: 'relative',
+                    cursor: 'pointer',
+                    padding: '6px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  className="hover:bg-slate-50 transition-colors"
+                >
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
+                    style={{ color: '#6B7280' }}>
+                    <path d="M9 2a5 5 0 015 5v3l1.5 2H2.5L4 10V7a5 5 0 015-5z"
+                      stroke="currentColor" strokeWidth="1.3"/>
+                    <path d="M7 14.5a2 2 0 004 0"
+                      stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '2px',
+                      right: '2px',
+                      background: '#DC2626',
+                      color: '#fff',
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      minWidth: '14px',
+                      height: '14px',
+                      borderRadius: '7px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 3px'
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </div>
               </header>
 
@@ -767,7 +902,7 @@ const Chats = () => {
               <div className="p-6 flex flex-col gap-3">
                 <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Operator Controls</h3>
                 
-                {(threadState === 'bot_active' || threadState === 'pending') && (
+                {(threadState === 'bot_active' || threadState === 'pending' || threadState === 'escalated') && (
                   <button 
                     onClick={handleTakeOver}
                     disabled={takingOver}
@@ -794,7 +929,7 @@ const Chats = () => {
                   </button>
                 )}
 
-                {(threadState === 'bot_active' || threadState === 'pending') && (
+                {(threadState === 'bot_active' || threadState === 'pending' || threadState === 'escalated') && (
                   <button 
                     onClick={handleTakeOver}
                     disabled={takingOver}

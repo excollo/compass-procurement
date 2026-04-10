@@ -1,5 +1,6 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useState, useEffect } from 'react';
 
 const NavItem = ({ to, icon, label, badge }) => {
   const innerContent = (isActive) => (
@@ -38,6 +39,44 @@ const NavItem = ({ to, icon, label, badge }) => {
 };
 
 const Sidebar = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    // fetch unread count on mount
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('escalations')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'open');
+      setUnreadCount(count || 0);
+    };
+    fetchCount();
+
+    // subscribe to new escalations
+    const channel = supabase
+      .channel('sidebar-notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'escalations'
+      }, () => {
+        setUnreadCount(prev => prev + 1);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'escalations',
+        filter: 'status=eq.resolved'
+      }, () => {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, []);
+
   return (
     <aside className="hidden md:flex flex-col h-screen w-64 bg-white border-r border-slate-100 z-50 flex-shrink-0">
 
@@ -67,6 +106,7 @@ const Sidebar = () => {
             <NavItem to="/orders" icon="inventory_2" label="Purchase Orders" />
             <NavItem to="/vendors" icon="group" label="Vendors" />
             <NavItem to="/chats" icon="chat_bubble_outline" label="Conversations" />
+            <NavItem to="/notifications" icon="notifications" label="Notifications" badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : null} />
             <NavItem to="/escalations" icon="warning" label="Escalations" />
           </div>
         </div>
