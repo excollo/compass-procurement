@@ -53,7 +53,7 @@ const EscalationDetail = () => {
         .from('escalations')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       setEscalation(data);

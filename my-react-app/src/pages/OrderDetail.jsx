@@ -5,9 +5,19 @@ import { supabase } from '../lib/supabase';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
-  const d = new Date(dateStr);
+  const normalized = String(dateStr).replace(/[\.\/]/g, '-');
+  const parts = normalized.split('-');
+  let d;
+  if (parts.length === 3 && parts[2].length === 4) {
+    d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+  } else {
+    d = new Date(normalized);
+  }
   if (isNaN(d)) return dateStr;
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+  const DD = String(d.getDate()).padStart(2, '0');
+  const MM = String(d.getMonth() + 1).padStart(2, '0');
+  const YYYY = d.getFullYear();
+  return `${DD}-${MM}-${YYYY}`;
 };
 
 const OrderDetail = () => {
@@ -16,9 +26,6 @@ const OrderDetail = () => {
     const [poItems, setPoItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [headerStatus, setHeaderStatus] = useState('');
-    const [headerDeliveryDate, setHeaderDeliveryDate] = useState('');
-    const [savingHeader, setSavingHeader] = useState(false);
 
     useEffect(() => {
         const fetchPODetail = async () => {
@@ -34,8 +41,6 @@ const OrderDetail = () => {
                 if (data && data.length > 0) {
                     const sortedData = (data || []).sort((a, b) => Number(a.po_item) - Number(b.po_item));
                     setPoItems(sortedData);
-                    setHeaderStatus(sortedData[0].status || 'Open');
-                    setHeaderDeliveryDate(sortedData[0].delivery_date || '');
                 }
             } catch (err) {
                 setError(err.message);
@@ -46,48 +51,6 @@ const OrderDetail = () => {
 
         fetchPODetail();
     }, [poNum]);
-
-    const handleHeaderUpdate = async () => {
-        try {
-            setSavingHeader(true);
-            
-            // 1. Update all rows in open_po_detail
-            const { error: err1 } = await supabase
-                .from('open_po_detail')
-                .update({ 
-                    status: headerStatus,
-                    delivery_date: headerDeliveryDate 
-                })
-                .eq('po_num', poNum);
-
-            if (err1) throw err1;
-
-            // 2. Update tracking table
-            const { error: err2 } = await supabase
-                .from('selected_open_po_line_items')
-                .update({ 
-                    status: headerStatus,
-                    delivery_date: headerDeliveryDate 
-                })
-                .eq('po_num', poNum);
-
-            if (err2) throw err2;
-
-            // 3. Update local state
-            setPoItems(prev => prev.map(item => ({
-                ...item,
-                status: headerStatus,
-                delivery_date: headerDeliveryDate
-            })));
-
-            alert('PO Header updated successfully across all items.');
-        } catch (err) {
-            console.error('Header update failed:', err);
-            alert('Failed to update PO header: ' + err.message);
-        } finally {
-            setSavingHeader(false);
-        }
-    };
 
     if (loading) {
         return (
@@ -170,50 +133,10 @@ const OrderDetail = () => {
                     <div className="flex justify-between items-end">
                         <div className="flex items-center gap-6">
                             <h1 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">PO #{poNum}</h1>
-                            
-                            <div className="flex items-center gap-3">
-                                <select 
-                                    value={headerStatus}
-                                    onChange={(e) => setHeaderStatus(e.target.value)}
-                                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer ${
-                                        headerStatus === 'Open' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
-                                        headerStatus === 'Closed' ? 'bg-slate-100 text-slate-500 border-slate-200' :
-                                        headerStatus === 'Cancelled' ? 'bg-red-50 text-red-600 border-red-100' :
-                                        'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                    }`}
-                                >
-                                    <option value="Open">Open</option>
-                                    <option value="Confirmed">Confirmed</option>
-                                    <option value="In Progress">In Progress</option>
-                                    <option value="Closed">Closed</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-
-                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-3 py-1 rounded-full">
-                                    <span className="material-symbols-outlined text-xs text-slate-400">calendar_today</span>
-                                    <input 
-                                        type="date"
-                                        value={headerDeliveryDate ? headerDeliveryDate.split('T')[0] : ''}
-                                        onChange={(e) => setHeaderDeliveryDate(e.target.value)}
-                                        className="bg-transparent border-none text-[10px] font-black uppercase text-slate-700 dark:text-slate-200 focus:ring-0 p-0 cursor-pointer"
-                                    />
-                                </div>
-
-                                {(headerStatus !== header.status || headerDeliveryDate !== header.delivery_date) && (
-                                    <button 
-                                        onClick={handleHeaderUpdate}
-                                        disabled={savingHeader}
-                                        className="flex items-center gap-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50"
-                                    >
-                                        <span className="material-symbols-outlined text-xs">{savingHeader ? 'sync' : 'save'}</span>
-                                        {savingHeader ? 'Saving...' : 'Save Header'}
-                                    </button>
-                                )}
-                            </div>
                         </div>
                         <div className="text-right">
                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Document Date: <span className="text-slate-900 dark:text-white ml-2">{formatDate(header.po_date)}</span></p>
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Delivery Sync: <span className="text-emerald-500 ml-2">{formatDate(headerDeliveryDate)}</span></p>
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Delivery Sync: <span className="text-emerald-500 ml-2">{formatDate(header.delivery_date)}</span></p>
                         </div>
                     </div>
                 </header>

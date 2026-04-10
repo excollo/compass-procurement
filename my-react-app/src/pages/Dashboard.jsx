@@ -179,16 +179,15 @@ const Dashboard = () => {
 
   /* ─── helpers: try schema fallback ────────────────────── */
   const queryChat = async (buildQuery) => {
-    for (const schema of ['procurement', 'public']) {
-      try {
-        const base = schema === 'procurement'
-          ? supabase.schema('procurement').from('chat_messages')
-          : supabase.from('chat_messages');
-        const r = await buildQuery(base);
-        if (!r.error) return r.data;
-      } catch (_) { }
+    try {
+      const base = supabase.from('chat_history');
+      const r = await buildQuery(base);
+      if (!r.error) return r.data;
+      throw r.error;
+    } catch (err) {
+      console.error('queryChat Error:', err);
+      return null;
     }
-    return null;
   };
 
 
@@ -260,8 +259,8 @@ const Dashboard = () => {
     setEscalLoading(true);
     try {
       const data = await queryChat(q =>
-        q.select('*').eq('escalation', true)
-          .order('created_at', { ascending: false }).limit(200)
+        q.select('*').eq('escalation_required', true)
+          .order('sent_at', { ascending: false }).limit(200)
       );
       const real = (data || []).map(msg => ({
         ...msg, delivery_date: poDateCache.current[msg.po_num] || null,
@@ -284,17 +283,16 @@ const Dashboard = () => {
 
   /* ─── realtime escalations ──────────────────────────────── */
   useEffect(() => {
-    const channels = ['procurement', 'public'].map(schema =>
-      supabase.channel(`dash-escal-${schema}`)
-        .on('postgres_changes', { event: 'INSERT', schema, table: 'chat_messages', filter: 'escalation=eq.true' },
-          (payload) => {
-            const newMsg = { ...payload.new, delivery_date: poDateCache.current[payload.new.po_num] || null };
-            setEscalations(prev => [newMsg, ...prev]);
-            setNewEscalCount(c => c + 1);
-          })
-        .subscribe()
-    );
-    return () => channels.forEach(ch => supabase.removeChannel(ch));
+    const channel = supabase.channel('dash-escal-public')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_history', filter: 'escalation_required=eq.true' },
+        (payload) => {
+          const newMsg = { ...payload.new, delivery_date: poDateCache.current[payload.new.po_num] || null };
+          setEscalations(prev => [newMsg, ...prev]);
+          setNewEscalCount(c => c + 1);
+        })
+      .subscribe();
+      
+    return () => supabase.removeChannel(channel);
   }, []);
 
   /* ─── pagination ───────────────────────────────────────── */
