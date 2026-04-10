@@ -5,9 +5,19 @@ import { supabase } from '../lib/supabase';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
-  const d = new Date(dateStr);
+  const normalized = String(dateStr).replace(/[\.\/]/g, '-');
+  const parts = normalized.split('-');
+  let d;
+  if (parts.length === 3 && parts[2].length === 4) {
+    d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+  } else {
+    d = new Date(normalized);
+  }
   if (isNaN(d)) return dateStr;
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+  const DD = String(d.getDate()).padStart(2, '0');
+  const MM = String(d.getMonth() + 1).padStart(2, '0');
+  const YYYY = d.getFullYear();
+  return `${DD}-${MM}-${YYYY}`;
 };
 
 const OrderDetail = () => {
@@ -16,9 +26,10 @@ const OrderDetail = () => {
     const [poItems, setPoItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [headerStatus, setHeaderStatus] = useState('');
-    const [headerDeliveryDate, setHeaderDeliveryDate] = useState('');
-    const [savingHeader, setSavingHeader] = useState(false);
+    const [summary, setSummary] = useState(null);   // full API response object
+    const [generating, setGenerating] = useState(false);
+    const [showPopup, setShowPopup] = useState(false);
+    const [summaryError, setSummaryError] = useState(null);
 
     useEffect(() => {
         const fetchPODetail = async () => {
@@ -34,8 +45,6 @@ const OrderDetail = () => {
                 if (data && data.length > 0) {
                     const sortedData = (data || []).sort((a, b) => Number(a.po_item) - Number(b.po_item));
                     setPoItems(sortedData);
-                    setHeaderStatus(sortedData[0].status || 'Open');
-                    setHeaderDeliveryDate(sortedData[0].delivery_date || '');
                 }
             } catch (err) {
                 setError(err.message);
@@ -47,74 +56,42 @@ const OrderDetail = () => {
         fetchPODetail();
     }, [poNum]);
 
-    const handleHeaderUpdate = async () => {
+    // ── Intent badge config ──────────────────────────────────────────────
+    const INTENT_CONFIG = {
+        confirmed:  { label: 'Confirmed',  cls: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+        delayed:    { label: 'Delayed',    cls: 'bg-amber-50  text-amber-600  border-amber-200'  },
+        at_risk:    { label: 'At Risk',    cls: 'bg-red-50    text-red-600    border-red-200'    },
+        unresolved: { label: 'Unresolved', cls: 'bg-slate-100 text-slate-600  border-slate-200' },
+    };
+    const RISK_CONFIG = {
+        low:    { label: 'Low Risk',    dot: 'bg-emerald-500', text: 'text-emerald-600' },
+        medium: { label: 'Medium Risk', dot: 'bg-amber-500',   text: 'text-amber-600'  },
+        high:   { label: 'High Risk',   dot: 'bg-red-500',     text: 'text-red-600'    },
+    };
+
+    const handleGenerateSummary = async () => {
+        setSummaryError(null);
+        setGenerating(true);
+        setShowPopup(true);
+        setSummary(null);
         try {
-            setSavingHeader(true);
-            
-            // 1. Update all rows in open_po_detail
-            const { error: err1 } = await supabase
-                .from('open_po_detail')
-                .update({ 
-                    status: headerStatus,
-                    delivery_date: headerDeliveryDate 
-                })
-                .eq('po_num', poNum);
-
-            if (err1) throw err1;
-
-            // 2. Update tracking table
-            const { error: err2 } = await supabase
-                .from('selected_open_po_line_items')
-                .update({ 
-                    status: headerStatus,
-                    delivery_date: headerDeliveryDate 
-                })
-                .eq('po_num', poNum);
-
-            if (err2) throw err2;
-
-            // 3. Update local state
-            setPoItems(prev => prev.map(item => ({
-                ...item,
-                status: headerStatus,
-                delivery_date: headerDeliveryDate
-            })));
-
-            // 4. Build bot notification message based on what changed
-            const changes = [];
-
-            if (headerDeliveryDate !== header.delivery_date) {
-                const formattedDate = headerDeliveryDate
-                    ? new Date(headerDeliveryDate).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                    })
-                    : headerDeliveryDate;
-                changes.push(`Delivery date updated to *${formattedDate}*`);
+            const agentUrl = import.meta.env.VITE_AGENT_URL || 'http://localhost:8000';
+            const res = await fetch(`${agentUrl}/api/summary/${poNum}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (!res.ok) {
+                const errBody = await res.json().catch(() => ({}));
+                throw new Error(errBody.detail || `Server error ${res.status}`);
             }
-
-            if (headerStatus !== header.status) {
-                changes.push(`PO status changed to *${headerStatus}*`);
-            }
-
-            if (changes.length > 0) {
-                const changeText = changes.join(' and ');
-                const message =
-                    `📋 *PO Update — #${poNum}*\n\n` +
-                    `${changeText}.\n\n` +
-                    `Please confirm you can accommodate this update. ` +
-                    `Reply with any concerns.`;
-
-                await sendBotUpdateMessage(message);
-            }
-
-            alert('PO Header updated successfully across all items.');
+            const data = await res.json();
+            setSummary(data);
         } catch (err) {
-            console.error('Header update failed:', err);
-            alert('Failed to update PO header: ' + err.message);
+            console.error('AI Summary error:', err);
+            setSummaryError(err.message || 'Failed to generate summary.');
+            setShowPopup(false);
         } finally {
-            setSavingHeader(false);
+            setGenerating(false);
         }
     };
 
@@ -258,50 +235,26 @@ const OrderDetail = () => {
                     <div className="flex justify-between items-end">
                         <div className="flex items-center gap-6">
                             <h1 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">PO #{poNum}</h1>
-                            
-                            <div className="flex items-center gap-3">
-                                <select 
-                                    value={headerStatus}
-                                    onChange={(e) => setHeaderStatus(e.target.value)}
-                                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer ${
-                                        headerStatus === 'Open' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
-                                        headerStatus === 'Closed' ? 'bg-slate-100 text-slate-500 border-slate-200' :
-                                        headerStatus === 'Cancelled' ? 'bg-red-50 text-red-600 border-red-100' :
-                                        'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                    }`}
-                                >
-                                    <option value="Open">Open</option>
-                                    <option value="Confirmed">Confirmed</option>
-                                    <option value="In Progress">In Progress</option>
-                                    <option value="Closed">Closed</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-
-                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-3 py-1 rounded-full">
-                                    <span className="material-symbols-outlined text-xs text-slate-400">calendar_today</span>
-                                    <input 
-                                        type="date"
-                                        value={headerDeliveryDate ? headerDeliveryDate.split('T')[0] : ''}
-                                        onChange={(e) => setHeaderDeliveryDate(e.target.value)}
-                                        className="bg-transparent border-none text-[10px] font-black uppercase text-slate-700 dark:text-slate-200 focus:ring-0 p-0 cursor-pointer"
-                                    />
-                                </div>
-
-                                {(headerStatus !== header.status || headerDeliveryDate !== header.delivery_date) && (
-                                    <button 
-                                        onClick={handleHeaderUpdate}
-                                        disabled={savingHeader}
-                                        className="flex items-center gap-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50"
-                                    >
-                                        <span className="material-symbols-outlined text-xs">{savingHeader ? 'sync' : 'save'}</span>
-                                        {savingHeader ? 'Saving...' : 'Save Header'}
-                                    </button>
-                                )}
-                            </div>
+                            <button 
+                                onClick={handleGenerateSummary}
+                                disabled={generating}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg active:scale-95 disabled:opacity-50 ml-4 border border-slate-100 dark:border-transparent"
+                            >
+                                <span className={`material-symbols-outlined text-sm ${generating ? 'animate-spin' : ''}`}>
+                                    {generating ? 'sync' : 'psychology'}
+                                </span>
+                                {generating ? 'Generating...' : 'AI Summary'}
+                            </button>
+                            {summaryError && (
+                                <span className="ml-3 text-[10px] font-bold text-red-500 flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-sm">error</span>
+                                    {summaryError}
+                                </span>
+                            )}
                         </div>
                         <div className="text-right">
                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Document Date: <span className="text-slate-900 dark:text-white ml-2">{formatDate(header.po_date)}</span></p>
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Delivery Sync: <span className="text-emerald-500 ml-2">{formatDate(headerDeliveryDate)}</span></p>
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Delivery Sync: <span className="text-emerald-500 ml-2">{formatDate(header.delivery_date)}</span></p>
                         </div>
                     </div>
                 </header>
@@ -428,7 +381,7 @@ const OrderDetail = () => {
                                                         })
                                                         .eq('po_num', rowData.po_num)
                                                         .eq('po_item', rowData.po_item);
-
+ 
                                                     if (error) throw error;
 
                                                     // 2. Build bot notification message for this line item
@@ -456,7 +409,7 @@ const OrderDetail = () => {
                                                     alert('Update failed: ' + err.message);
                                                 }
                                             };
-
+ 
                                             const handleChange = (field, value) => {
                                                 const newItems = [...poItems];
                                                 const updatedItem = { ...newItems[idx], [field]: value };
@@ -470,7 +423,7 @@ const OrderDetail = () => {
                                                 newItems[idx] = updatedItem;
                                                 setPoItems(newItems);
                                             };
-
+ 
                                             return (
                                                 <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-all group">
                                                     <td className="px-8 py-4">
@@ -522,7 +475,7 @@ const OrderDetail = () => {
                                                                     default: return 'bg-slate-50 text-slate-600 border-slate-200';
                                                                 }
                                                             };
-
+ 
                                                             return (
                                                                 <select
                                                                     value={currentStatus}
@@ -555,7 +508,7 @@ const OrderDetail = () => {
                             <div className="p-8 border-t border-slate-50 dark:border-slate-800 bg-[#F8FAFC]/50 dark:bg-slate-900/50 text-center">
                                 <p className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.5em]">Inventory Sync Verified • Finalizing Document Ledger</p>
                             </div>
-
+ 
                         </div>
                     </div>
                 </div>
@@ -563,7 +516,157 @@ const OrderDetail = () => {
             <style dangerouslySetInnerHTML={{ __html: `
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .font-headline { font-family: 'Outfit', sans-serif; }
+                @keyframes scaleIn {
+                    from { opacity: 0; transform: scale(0.94) translateY(12px); }
+                    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+                }
+                .animate-scale-in { animation: scaleIn 0.35s cubic-bezier(0.16,1,0.3,1) both; }
             `}} />
+
+            {/* ━━ AI Summary Modal ━━ */}
+            {showPopup && (() => {
+                // ── markdown helpers ──────────────────────────────────────
+                // Render inline **bold** markers as <strong> spans
+                const renderInline = (text) => {
+                    const parts = text.split(/\*\*(.+?)\*\*/g);
+                    return parts.map((part, i) =>
+                        i % 2 === 1
+                            ? <strong key={i} className="font-black text-slate-900 dark:text-white">{part}</strong>
+                            : <span key={i}>{part}</span>
+                    );
+                };
+
+                // Split numbered list: "1. ... 2. ... 3. ..."
+                const parseItems = (raw) => {
+                    if (!raw) return [];
+                    // split on pattern like "1." "2." etc at start or after whitespace
+                    const chunks = raw.split(/(?=\d+\.\s+\*\*)/g).filter(Boolean);
+                    if (chunks.length <= 1) return null; // plain text, not a list
+                    return chunks.map(chunk => {
+                        const m = chunk.match(/^(\d+)\.\s+\*\*(.+?)\*\*\s*(.*)/s);
+                        if (!m) return { num: '', label: '', body: chunk.trim() };
+                        return { num: m[1], label: m[2], body: m[3].trim() };
+                    });
+                };
+
+                const SECTION_ICONS = ['task_alt', 'warning', 'calendar_month', 'support_agent'];
+
+                return (
+                    <div
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
+                        onClick={() => { if (!generating) { setShowPopup(false); setSummary(null); } }}
+                    >
+                        <div
+                            className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-scale-in flex flex-col max-h-[90vh]"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* ── Header ── */}
+                            <div className="px-8 pt-8 pb-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-4 shrink-0">
+                                <div className={`p-3.5 rounded-2xl shadow-lg shrink-0 ${generating ? 'bg-slate-200 dark:bg-slate-700' : 'bg-blue-500 shadow-blue-500/25'}`}>
+                                    <span className={`material-symbols-outlined text-2xl text-white ${generating ? 'animate-spin text-slate-400' : ''}`}>
+                                        {generating ? 'sync' : 'auto_awesome'}
+                                    </span>
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.25em]">Compass AI · ProcureOps</p>
+                                    <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tighter truncate">
+                                        {generating ? 'Analysing conversation…' : `AI Summary — PO #${poNum}`}
+                                    </h3>
+                                </div>
+                            </div>
+
+                            {/* ── Scrollable body ── */}
+                            <div className="flex-1 overflow-y-auto no-scrollbar px-8 py-6 space-y-4">
+
+                                {/* Loading skeleton */}
+                                {generating && (
+                                    <div className="space-y-4 py-2">
+                                        {[1, 0.8, 0.65].map((w, i) => (
+                                            <div key={i} className={`h-4 bg-slate-100 dark:bg-slate-800 rounded-full animate-pulse`} style={{ width: `${w * 100}%` }} />
+                                        ))}
+                                        <div className="mt-6 space-y-3">
+                                            {[0.9, 1, 0.75].map((w, i) => (
+                                                <div key={i} className={`h-4 bg-slate-100 dark:bg-slate-800 rounded-full animate-pulse`} style={{ width: `${w * 100}%` }} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Real content */}
+                                {!generating && summary && (() => {
+                                    const intent = INTENT_CONFIG[summary.key_intent] || INTENT_CONFIG.unresolved;
+                                    const risk   = RISK_CONFIG[summary.risk_level]   || RISK_CONFIG.medium;
+                                    const genAt  = summary.generated_at
+                                        ? new Date(summary.generated_at).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+                                        : '—';
+                                    const items = parseItems(summary.summary);
+
+                                    return (
+                                        <>
+                                            {/* Badges row */}
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${intent.cls}`}>
+                                                    {intent.label}
+                                                </span>
+                                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                    <span className={`w-2 h-2 rounded-full shrink-0 ${risk.dot}`} />
+                                                    <span className={risk.text}>{risk.label}</span>
+                                                </span>
+                                            </div>
+
+                                            {/* Structured list or plain text */}
+                                            {items ? (
+                                                <div className="space-y-3">
+                                                    {items.map((item, i) => (
+                                                        <div key={i} className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                                            <div className="w-7 h-7 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-[11px] font-black shrink-0 mt-0.5">
+                                                                {item.num || <span className="material-symbols-outlined text-sm">{SECTION_ICONS[i] || 'info'}</span>}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                {item.label && (
+                                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.label}</p>
+                                                                )}
+                                                                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                                                                    {renderInline(item.body)}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                                                        {renderInline(summary.summary || '')}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Meta row */}
+                                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-1 pb-2">
+                                                <span>{summary.message_count} message{summary.message_count !== 1 ? 's' : ''} analysed</span>
+                                                <span>Generated {genAt}</span>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* ── Footer ── */}
+                            <div className="px-8 pt-4 pb-8 border-t border-slate-100 dark:border-slate-800 shrink-0 space-y-3">
+                                <button
+                                    onClick={() => { setShowPopup(false); setSummary(null); }}
+                                    className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-2xl uppercase tracking-widest text-[11px] hover:opacity-90 active:scale-95 transition-all"
+                                >
+                                    Close
+                                </button>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">
+                                    Generated from live chat history · Compass Intelligence Module
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };

@@ -180,16 +180,15 @@ const Dashboard = () => {
 
   /* ─── helpers: try schema fallback ────────────────────── */
   const queryChat = async (buildQuery) => {
-    for (const schema of ['procurement', 'public']) {
-      try {
-        const base = schema === 'procurement'
-          ? supabase.schema('procurement').from('chat_messages')
-          : supabase.from('chat_messages');
-        const r = await buildQuery(base);
-        if (!r.error) return r.data;
-      } catch (_) { }
+    try {
+      const base = supabase.from('chat_history');
+      const r = await buildQuery(base);
+      if (!r.error) return r.data;
+      throw r.error;
+    } catch (err) {
+      console.error('queryChat Error:', err);
+      return null;
     }
-    return null;
   };
 
 
@@ -261,8 +260,8 @@ const Dashboard = () => {
     setEscalLoading(true);
     try {
       const data = await queryChat(q =>
-        q.select('*').eq('escalation', true)
-          .order('created_at', { ascending: false }).limit(200)
+        q.select('*').eq('escalation_required', true)
+          .order('sent_at', { ascending: false }).limit(200)
       );
       const real = (data || []).map(msg => ({
         ...msg, delivery_date: poDateCache.current[msg.po_num] || null,
@@ -295,40 +294,16 @@ const Dashboard = () => {
 
   /* ─── realtime escalations ──────────────────────────────── */
   useEffect(() => {
-    const channels = ['procurement', 'public'].map(schema =>
-      supabase.channel(`dash-escal-${schema}`)
-        .on('postgres_changes', { event: 'INSERT', schema, table: 'chat_messages', filter: 'escalation=eq.true' },
-          (payload) => {
-            const newMsg = { ...payload.new, delivery_date: poDateCache.current[payload.new.po_num] || null };
-            setEscalations(prev => [newMsg, ...prev]);
-            setNewEscalCount(c => c + 1);
-          })
-        .subscribe()
-    );
-
-    const notificationChannel = supabase
-      .channel('dash-notifications')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'escalations'
-      }, () => {
-        setUnreadCount(prev => prev + 1);
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'escalations',
-        filter: 'status=eq.resolved'
-      }, () => {
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      })
+    const channel = supabase.channel('dash-escal-public')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_history', filter: 'escalation_required=eq.true' },
+        (payload) => {
+          const newMsg = { ...payload.new, delivery_date: poDateCache.current[payload.new.po_num] || null };
+          setEscalations(prev => [newMsg, ...prev]);
+          setNewEscalCount(c => c + 1);
+        })
       .subscribe();
-
-    return () => {
-      channels.forEach(ch => supabase.removeChannel(ch));
-      supabase.removeChannel(notificationChannel);
-    };
+      
+    return () => supabase.removeChannel(channel);
   }, []);
 
   /* ─── pagination ───────────────────────────────────────── */
@@ -355,13 +330,6 @@ const Dashboard = () => {
             <h1 className="text-base font-black tracking-tighter text-slate-900 uppercase font-headline">
               Procurement&nbsp;Ops
             </h1>
-            <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              Live
-            </span>
           </div>
 
           <div className="flex items-center gap-3">

@@ -209,13 +209,6 @@ const Escalations = () => {
             <h1 className="text-base font-black tracking-tighter text-slate-900 dark:text-white uppercase font-headline">
               Procurement Ops
             </h1>
-            <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-100 dark:border-slate-700">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              Live
-            </span>
           </div>
           <div className="flex items-center gap-3">
              <div
@@ -338,7 +331,7 @@ const Escalations = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px) font-black uppercase tracking-widest text-slate-400">SLA State</label>
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">SLA State</label>
                 <select 
                   className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-2.5 px-4 focus:ring-2 focus:ring-blue-500/20"
                   value={filterSla}
@@ -367,13 +360,13 @@ const Escalations = () => {
                   <thead>
                     <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
                       <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">PO Number</th>
-                      <th className="text-left px-6 py-5 text-[9px) font-black uppercase tracking-widest text-slate-400">Vendor</th>
+                      <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Vendor</th>
                       <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Delivery</th>
                       <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Priority</th>
                       <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Reason</th>
                       <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Vendor SLA</th>
                       <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Operator SLA</th>
-                      <th className="text-right px-6 py-5 text-[9px) font-black uppercase tracking-widest text-slate-400">Action</th>
+                      <th className="text-right px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
