@@ -200,6 +200,18 @@ const ChatSkeleton = () => (
 );
 
 const Chats = () => {
+  // Validation for backend URL
+  useEffect(() => {
+    const backendUrl = import.meta.env.VITE_VENDOR_BACKEND_URL;
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (!backendUrl) {
+      console.error('❌ VITE_VENDOR_BACKEND_URL is not defined in environment variables.');
+    } else if (!isLocal && backendUrl.includes('localhost')) {
+      console.warn(`🚨 WARNING: Your app is running at ${window.location.hostname} but pointing to a local backend: ${backendUrl}. This will likely fail for other users.`);
+    }
+  }, []);
+
   const [poData, setPoData] = useState([]);
   const [selectedPo, setSelectedPo] = useState(null);
   const [loading, setLoading] = useState(true);
