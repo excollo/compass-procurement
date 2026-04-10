@@ -9,7 +9,12 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const fmtDate = (d) => {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+  const date = new Date(d);
+  if (isNaN(date)) return d;
+  const DD = String(date.getDate()).padStart(2, '0');
+  const MM = String(date.getMonth() + 1).padStart(2, '0');
+  const YYYY = date.getFullYear();
+  return `${DD} ${MM} ${YYYY}`;
 };
 const fmtTime = (d) => {
   if (!d) return '';

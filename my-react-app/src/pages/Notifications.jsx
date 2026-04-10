@@ -256,12 +256,15 @@ export default function Notifications() {
                       <div className="flex items-center gap-4 mt-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                         <div className="flex items-center gap-1.5">
                           <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                          ETD: {esc.delivery_date
-                            ? new Date(esc.delivery_date).toLocaleDateString('en-GB', {
-                                day: '2-digit', month: 'short', year: 'numeric'
-                              })
-                            : '—'
-                          }
+                          ETD: {(() => {
+                            if (!esc.delivery_date) return '—';
+                            const d = new Date(esc.delivery_date);
+                            if (isNaN(d)) return esc.delivery_date;
+                            const DD = String(d.getDate()).padStart(2, '0');
+                            const MM = String(d.getMonth() + 1).padStart(2, '0');
+                            const YYYY = d.getFullYear();
+                            return `${DD} ${MM} ${YYYY}`;
+                          })()}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="material-symbols-outlined text-[14px]">folder</span>

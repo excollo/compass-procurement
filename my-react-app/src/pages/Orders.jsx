@@ -7,19 +7,12 @@ import { useSLATimer } from '../hooks/useSLATimer';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
-  const normalized = dateStr.replace(/[\.\/]/g, '-');
-  const parts = normalized.split('-');
-  let d;
-  if (parts.length === 3 && parts[2].length === 4) {
-    d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-  } else {
-    d = new Date(normalized);
-  }
+  const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
   const DD = String(d.getDate()).padStart(2, '0');
   const MM = String(d.getMonth() + 1).padStart(2, '0');
   const YYYY = d.getFullYear();
-  return `${DD}-${MM}-${YYYY}`;
+  return `${DD} ${MM} ${YYYY}`;
 };
 
 const convertToInputDate = (dateStr) => {

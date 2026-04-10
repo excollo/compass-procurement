@@ -13,6 +13,16 @@ const REASON_LABELS = {
   quality_issue: 'Quality Issue'
 };
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  const DD = String(d.getDate()).padStart(2, '0');
+  const MM = String(d.getMonth() + 1).padStart(2, '0');
+  const YYYY = d.getFullYear();
+  return `${DD} ${MM} ${YYYY}`;
+};
+
 const PRIORITY_COLORS = {
   critical: 'bg-red-50 text-red-600 border-red-100',
   high: 'bg-amber-50 text-amber-600 border-amber-100',
@@ -417,7 +427,7 @@ const Escalations = () => {
                               </div>
                             </td>
                             <td className={`px-6 py-5 text-xs ${dateColor}`}>
-                              {new Date(item.delivery_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {formatDate(item.delivery_date)}
                             </td>
                             <td className="px-6 py-5">
                               <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${PRIORITY_COLORS[item.priority]}`}>

@@ -5,19 +5,12 @@ import { supabase } from '../lib/supabase';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
-  const normalized = String(dateStr).replace(/[\.\/]/g, '-');
-  const parts = normalized.split('-');
-  let d;
-  if (parts.length === 3 && parts[2].length === 4) {
-    d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-  } else {
-    d = new Date(normalized);
-  }
+  const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
   const DD = String(d.getDate()).padStart(2, '0');
   const MM = String(d.getMonth() + 1).padStart(2, '0');
   const YYYY = d.getFullYear();
-  return `${DD}-${MM}-${YYYY}`;
+  return `${DD} ${MM} ${YYYY}`;
 };
 
 const OrderDetail = () => {
@@ -30,6 +23,9 @@ const OrderDetail = () => {
     const [generating, setGenerating] = useState(false);
     const [showPopup, setShowPopup] = useState(false);
     const [summaryError, setSummaryError] = useState(null);
+    const [headerStatus, setHeaderStatus] = useState('');
+    const [headerDeliveryDate, setHeaderDeliveryDate] = useState('');
+    const [savingHeader, setSavingHeader] = useState(false);
 
     useEffect(() => {
         const fetchPODetail = async () => {
@@ -45,6 +41,8 @@ const OrderDetail = () => {
                 if (data && data.length > 0) {
                     const sortedData = (data || []).sort((a, b) => Number(a.po_item) - Number(b.po_item));
                     setPoItems(sortedData);
+                    setHeaderStatus(sortedData[0].status || 'Open');
+                    setHeaderDeliveryDate(sortedData[0].delivery_date || '');
                 }
             } catch (err) {
                 setError(err.message);
@@ -92,6 +90,74 @@ const OrderDetail = () => {
             setShowPopup(false);
         } finally {
             setGenerating(false);
+        }
+    };
+
+    const handleHeaderUpdate = async () => {
+        try {
+            setSavingHeader(true);
+            
+            // 1. Update all rows in open_po_detail
+            const { error: err1 } = await supabase
+                .from('open_po_detail')
+                .update({ 
+                    status: headerStatus,
+                    delivery_date: headerDeliveryDate 
+                })
+                .eq('po_num', poNum);
+
+            if (err1) throw err1;
+
+            // 2. Update tracking table
+            const { error: err2 } = await supabase
+                .from('selected_open_po_line_items')
+                .update({ 
+                    status: headerStatus,
+                    delivery_date: headerDeliveryDate 
+                })
+                .eq('po_num', poNum);
+
+            if (err2) throw err2;
+
+            // 3. Update local state
+            setPoItems(prev => prev.map(item => ({
+                ...item,
+                status: headerStatus,
+                delivery_date: headerDeliveryDate
+            })));
+
+            // 4. Build bot notification message with fixed trigger logic
+            const header = poItems[0] || {};
+            const oldDate = header.delivery_date ? header.delivery_date.split('T')[0] : '';
+            const newDate = headerDeliveryDate ? headerDeliveryDate.split('T')[0] : '';
+
+            const changes = [];
+
+            if (newDate !== oldDate) {
+                const formattedDate = formatDate(headerDeliveryDate);
+                changes.push(`Delivery date updated to *${formattedDate}*`);
+            }
+
+            if (headerStatus !== (header.status || 'Open')) {
+                changes.push(`PO status changed to *${headerStatus}*`);
+            }
+
+            if (changes.length > 0) {
+                const changeText = changes.join(' and ');
+                const message =
+                    `📋 *PO Update Notification — #${poNum}*\n\n` +
+                    `The system has recorded an update: ${changeText}.\n\n` +
+                    `Please review this change and confirm if you can accommodate it.`;
+
+                await sendBotUpdateMessage(message);
+            }
+
+            alert('PO Header updated successfully across all items.');
+        } catch (err) {
+            console.error('Header update failed:', err);
+            alert('Failed to update PO header: ' + err.message);
+        } finally {
+            setSavingHeader(false);
         }
     };
 
@@ -235,22 +301,57 @@ const OrderDetail = () => {
                     <div className="flex justify-between items-end">
                         <div className="flex items-center gap-6">
                             <h1 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">PO #{poNum}</h1>
-                            <button 
-                                onClick={handleGenerateSummary}
-                                disabled={generating}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg active:scale-95 disabled:opacity-50 ml-4 border border-slate-100 dark:border-transparent"
-                            >
-                                <span className={`material-symbols-outlined text-sm ${generating ? 'animate-spin' : ''}`}>
-                                    {generating ? 'sync' : 'psychology'}
-                                </span>
-                                {generating ? 'Generating...' : 'AI Summary'}
-                            </button>
-                            {summaryError && (
-                                <span className="ml-3 text-[10px] font-bold text-red-500 flex items-center gap-1">
-                                    <span className="material-symbols-outlined text-sm">error</span>
-                                    {summaryError}
-                                </span>
-                            )}
+                            
+                            <div className="flex items-center gap-3">
+                                <select 
+                                    value={headerStatus}
+                                    onChange={(e) => setHeaderStatus(e.target.value)}
+                                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer ${
+                                        headerStatus === 'Open' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
+                                        headerStatus === 'Closed' ? 'bg-slate-100 text-slate-500 border-slate-200' :
+                                        headerStatus === 'Cancelled' ? 'bg-red-50 text-red-600 border-red-100' :
+                                        'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                    }`}
+                                >
+                                    <option value="Open">Open</option>
+                                    <option value="Confirmed">Confirmed</option>
+                                    <option value="Partial">Partial</option>
+                                    <option value="Fulfilled">Fulfilled</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
+
+                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-3 py-1 rounded-full">
+                                    <span className="material-symbols-outlined text-xs text-slate-400">calendar_today</span>
+                                    <input 
+                                        type="date"
+                                        value={headerDeliveryDate ? headerDeliveryDate.split('T')[0] : ''}
+                                        onChange={(e) => setHeaderDeliveryDate(e.target.value)}
+                                        className="bg-transparent border-none p-0 text-[10px] font-bold text-slate-600 dark:text-slate-300 focus:ring-0 cursor-pointer [color-scheme:light]"
+                                    />
+                                </div>
+
+                                <button 
+                                    onClick={handleHeaderUpdate}
+                                    disabled={savingHeader}
+                                    className="flex items-center gap-2 px-4 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:opacity-90 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                                >
+                                    <span className={`material-symbols-outlined text-sm ${savingHeader ? 'animate-spin' : ''}`}>
+                                        {savingHeader ? 'sync' : 'save'}
+                                    </span>
+                                    {savingHeader ? 'Saving...' : 'Save Header'}
+                                </button>
+                                
+                                <button 
+                                    onClick={handleGenerateSummary}
+                                    disabled={generating}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg active:scale-95 disabled:opacity-50 ml-4 border border-slate-100 dark:border-transparent"
+                                >
+                                    <span className={`material-symbols-outlined text-sm ${generating ? 'animate-spin' : ''}`}>
+                                        {generating ? 'sync' : 'psychology'}
+                                    </span>
+                                    {generating ? 'Generating...' : 'AI Summary'}
+                                </button>
+                            </div>
                         </div>
                         <div className="text-right">
                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Document Date: <span className="text-slate-900 dark:text-white ml-2">{formatDate(header.po_date)}</span></p>

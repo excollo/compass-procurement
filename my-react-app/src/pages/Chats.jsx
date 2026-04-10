@@ -69,19 +69,12 @@ const formatTime = (timestamp) => {
 
 const formatDeliveryDate = (dateStr) => {
   if (!dateStr) return 'N/A';
-  const normalized = String(dateStr).replace(/[\.\/]/g, '-');
-  const parts = normalized.split('-');
-  let d;
-  if (parts.length === 3 && parts[2].length === 4) {
-    d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-  } else {
-    d = new Date(normalized);
-  }
+  const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
   const DD = String(d.getDate()).padStart(2, '0');
   const MM = String(d.getMonth() + 1).padStart(2, '0');
   const YYYY = d.getFullYear();
-  return `${DD}-${MM}-${YYYY}`;
+  return `${DD} ${MM} ${YYYY}`;
 };
 
 // ── Compass opening message (pinned top of every chat) ──────────────────────
@@ -933,27 +926,10 @@ const Chats = () => {
                   >
                     <span className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-lg">smart_toy</span>
-                      {handingBack ? 'Generating context...' : 'Hand Back to Bot'}
+                      {handingBack ? 'Handing back...' : 'Hand Back to Bot'}
                     </span>
                   </button>
                 )}
-
-                {(threadState === 'bot_active' || threadState === 'pending' || threadState === 'escalated') && (
-                  <button 
-                    onClick={handleTakeOver}
-                    disabled={takingOver}
-                    className="w-full py-3.5 px-4 bg-surface-container-highest/50 text-error font-bold text-xs rounded-xl flex items-center gap-2 hover:bg-error-container transition-all disabled:opacity-50"
-                  >
-                    <span className="material-symbols-outlined text-lg">pause_circle</span>
-                    {takingOver ? 'Pausing Bot...' : 'Pause Bot Completely'}
-                  </button>
-                )}
-                <div className="mt-4 pt-4 border-t border-outline-variant/10">
-                  <button className="w-full py-3.5 px-4 bg-green-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-600/10 hover:bg-green-700 transition-all">
-                    <span className="material-symbols-outlined text-lg">check_circle</span>
-                    Mark Resolved
-                  </button>
-                </div>
               </div>
             </>
           )}
