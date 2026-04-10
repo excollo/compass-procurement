@@ -7,7 +7,14 @@ import { useSLATimer } from '../hooks/useSLATimer';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
-  const d = new Date(dateStr);
+  const normalized = dateStr.replace(/[\.\/]/g, '-');
+  const parts = normalized.split('-');
+  let d;
+  if (parts.length === 3 && parts[2].length === 4) {
+    d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+  } else {
+    d = new Date(normalized);
+  }
   if (isNaN(d)) return dateStr;
   const DD = String(d.getDate()).padStart(2, '0');
   const MM = String(d.getMonth() + 1).padStart(2, '0');
@@ -17,16 +24,16 @@ const formatDate = (dateStr) => {
 
 const convertToInputDate = (dateStr) => {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d)) {
-    // If it's already in DD-MM-YYYY (common in this app), convert to YYYY-MM-DD
-    const parts = dateStr.split('-');
-    if (parts.length === 3 && parts[2].length === 4) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-    return '';
+  const normalized = dateStr.replace(/[\.\/]/g, '-');
+  const parts = normalized.split('-');
+  if (parts.length === 3 && parts[2].length === 4) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
   }
-  return d.toISOString().split('T')[0];
+  const d = new Date(normalized);
+  if (!isNaN(d)) {
+    return d.toISOString().split('T')[0];
+  }
+  return '';
 };
 
 const COMM_STATES = [
