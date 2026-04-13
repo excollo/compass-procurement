@@ -14,7 +14,7 @@ const fmtDate = (d) => {
   const DD = String(date.getDate()).padStart(2, '0');
   const MM = String(date.getMonth() + 1).padStart(2, '0');
   const YYYY = date.getFullYear();
-  return `${DD} ${MM} ${YYYY}`;
+  return `${DD}-${MM}-${YYYY}`;
 };
 const fmtTime = (d) => {
   if (!d) return '';
@@ -59,52 +59,52 @@ const FIXED_POS = ['4100259330', '4100260294', '4100260367', '4100260584', '4100
 /* ─── Dummy escalation rows (distinct from FIXED_POS) ──────── */
 const DUMMY_ESCALATIONS = [
   {
-    id: 'dum-1', po_num: '4100261001', vendor_code: 'VND-082',
+    id: 'dum-1', po_num: '4100261001', vendor_code: 'VND-082', vendor_name: 'Apex Manufacturing', spoc: 'Alex Rivera',
     message_text: 'Material not available at source warehouse',
     delivery_date: '2026-04-09', created_at: '2026-04-07T05:14:00Z', escalation: true,
   },
   {
-    id: 'dum-2', po_num: '4100261088', vendor_code: 'VND-115',
+    id: 'dum-2', po_num: '4100261088', vendor_code: 'VND-115', vendor_name: 'Global Logistics', spoc: 'Alex Rivera',
     message_text: 'Shipment delayed due to port congestion',
     delivery_date: '2026-04-07', created_at: '2026-04-07T04:52:00Z', escalation: true,
   },
   {
-    id: 'dum-3', po_num: '4100261173', vendor_code: 'VND-034',
+    id: 'dum-3', po_num: '4100261173', vendor_code: 'VND-034', vendor_name: 'TechFlow Corp', spoc: 'Alex Rivera',
     message_text: 'Partial quantity dispatched, balance pending',
     delivery_date: '2026-04-10', created_at: '2026-04-07T03:30:00Z', escalation: true,
   },
   {
-    id: 'dum-4', po_num: '4100261240', vendor_code: 'VND-209',
+    id: 'dum-4', po_num: '4100261240', vendor_code: 'VND-209', vendor_name: 'Nexus Materials', spoc: 'Alex Rivera',
     message_text: 'Quality inspection failed, re-work in progress',
     delivery_date: '2026-04-08', created_at: '2026-04-06T22:10:00Z', escalation: true,
   },
   {
-    id: 'dum-5', po_num: '4100261319', vendor_code: 'VND-057',
+    id: 'dum-5', po_num: '4100261319', vendor_code: 'VND-057', vendor_name: 'Summit Supply', spoc: 'Alex Rivera',
     message_text: 'Vendor requesting delivery date extension by 3 days',
     delivery_date: '2026-04-12', created_at: '2026-04-06T18:45:00Z', escalation: true,
   },
   {
-    id: 'dum-6', po_num: '4100261402', vendor_code: 'VND-143',
+    id: 'dum-6', po_num: '4100261402', vendor_code: 'VND-143', vendor_name: 'Prime Industrial', spoc: 'Alex Rivera',
     message_text: 'Raw material price revision — approval needed',
     delivery_date: '2026-04-11', created_at: '2026-04-06T15:20:00Z', escalation: true,
   },
   {
-    id: 'dum-7', po_num: '4100261475', vendor_code: 'VND-061',
+    id: 'dum-7', po_num: '4100261475', vendor_code: 'VND-061', vendor_name: 'Continental Cargo', spoc: 'Alex Rivera',
     message_text: 'Truck breakdown on highway, ETA uncertain',
     delivery_date: '2026-04-07', created_at: '2026-04-06T12:05:00Z', escalation: true,
   },
   {
-    id: 'dum-8', po_num: '4100261530', vendor_code: 'VND-198',
+    id: 'dum-8', po_num: '4100261530', vendor_code: 'VND-198', vendor_name: 'Swift Shipping', spoc: 'Alex Rivera',
     message_text: 'Custom duty hold at port of entry',
     delivery_date: '2026-04-13', created_at: '2026-04-06T09:40:00Z', escalation: true,
   },
   {
-    id: 'dum-9', po_num: '4100261612', vendor_code: 'VND-022',
+    id: 'dum-9', po_num: '4100261612', vendor_code: 'VND-022', vendor_name: 'Echo Packaging', spoc: 'Alex Rivera',
     message_text: 'Packing list mismatch with invoice — rejected at gate',
     delivery_date: '2026-04-08', created_at: '2026-04-06T07:15:00Z', escalation: true,
   },
   {
-    id: 'dum-10', po_num: '4100261700', vendor_code: 'VND-174',
+    id: 'dum-10', po_num: '4100261700', vendor_code: 'VND-174', vendor_name: 'Vanguard Co', spoc: 'Alex Rivera',
     message_text: 'Labour strike at vendor facility, production halted',
     delivery_date: '2026-04-14', created_at: '2026-04-05T20:30:00Z', escalation: true,
   },
@@ -264,12 +264,16 @@ const Dashboard = () => {
   const fetchEscalations = useCallback(async () => {
     setEscalLoading(true);
     try {
-      const data = await queryChat(q =>
-        q.select('*').eq('escalation_required', true)
-          .order('sent_at', { ascending: false }).limit(200)
-      );
-      const real = (data || []).map(msg => ({
-        ...msg, delivery_date: poDateCache.current[msg.po_num] || null,
+      const { data, error } = await supabase
+        .from('escalations')
+        .select('*')
+        .order('escalation_created_at', { ascending: false })
+        .limit(200);
+
+      if (error) throw error;
+      const real = (data || []).map(row => ({
+        ...row,
+        message_text: row.reason_detail || row.escalation_reason || '—'
       }));
       // Merge real data with dummy rows (dummy rows always appended)
       setEscalations([...real, ...DUMMY_ESCALATIONS]);
@@ -300,9 +304,9 @@ const Dashboard = () => {
   /* ─── realtime escalations ──────────────────────────────── */
   useEffect(() => {
     const channel = supabase.channel('dash-escal-public')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_history', filter: 'escalation_required=eq.true' },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'escalations' },
         (payload) => {
-          const newMsg = { ...payload.new, delivery_date: poDateCache.current[payload.new.po_num] || null };
+          const newMsg = { ...payload.new, message_text: payload.new.reason_detail || payload.new.escalation_reason || '—' };
           setEscalations(prev => [newMsg, ...prev]);
           setNewEscalCount(c => c + 1);
         })
@@ -426,7 +430,7 @@ const Dashboard = () => {
             </div>
 
             {/* ── Bottom row: Escalations (left) + Conversations (right) ── */}
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
 
               {/* ── Escalations table ── */}
               <div className="xl:col-span-3 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
@@ -458,10 +462,10 @@ const Dashboard = () => {
                 </div>
 
                 <div className="overflow-x-auto flex-1">
-                  <table className="w-full border-collapse min-w-[520px]">
+                  <table className="w-full border-collapse min-w-[800px]">
                     <thead className="bg-slate-50/60 border-b border-slate-100">
                       <tr>
-                        {['PO #', 'Delivery', 'Reason / Message', 'Category'].map(h => (
+                        {['PO #', 'Vendor Name', 'SPOC', 'Delivery', 'Reason / Message', 'Category'].map(h => (
                           <th key={h} className="text-left px-6 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400">{h}</th>
                         ))}
                       </tr>
@@ -470,12 +474,12 @@ const Dashboard = () => {
                       {escalLoading ? (
                         [...Array(4)].map((_, i) => (
                           <tr key={i} className="animate-pulse">
-                            <td colSpan={4} className="px-6 py-3.5"><div className="h-7 bg-slate-50 rounded-xl" /></td>
+                            <td colSpan={6} className="px-6 py-3.5"><div className="h-7 bg-slate-50 rounded-xl" /></td>
                           </tr>
                         ))
                       ) : paginatedEscal.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="px-6 py-16 text-center">
+                          <td colSpan={6} className="px-6 py-16 text-center">
                             <div className="flex flex-col items-center gap-2">
                               <span className="material-symbols-outlined text-3xl text-slate-200">check_circle</span>
                               <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">No escalations detected</p>
@@ -486,8 +490,17 @@ const Dashboard = () => {
                         paginatedEscal.map((row, idx) => (
                           <tr key={row.id || idx} className="hover:bg-red-50/20 transition-all border-l-4 border-red-400">
                             <td className="px-6 py-3.5 w-[120px] flex-shrink-0"><span className="text-xs font-black text-slate-900">#{row.po_num || '—'}</span></td>
+                            <td className="px-6 py-3.5 whitespace-nowrap min-w-[140px]">
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-black text-slate-800">{row.vendor_name || '—'}</span>
+                                {row.vendor_code && <span className="text-[9px] text-slate-400 uppercase tracking-widest">{row.vendor_code}</span>}
+                              </div>
+                            </td>
+                            <td className="px-6 py-3.5 whitespace-nowrap min-w-[100px]">
+                               <span className="text-[11px] font-bold text-slate-600">{row.spoc || 'Alex Rivera'}</span>
+                            </td>
                             <td className={`px-6 py-3.5 text-[10px] font-bold whitespace-nowrap ${ETD_COLOR(row.delivery_date)}`}>{fmtDate(row.delivery_date)}</td>
-                            <td className="px-6 py-3.5">
+                            <td className="px-6 py-3.5 min-w-[180px]">
                               <p className="text-xs text-slate-700 font-medium leading-snug">{row.message_text || '—'}</p>
                             </td>
                             <td className="px-6 py-3.5 whitespace-nowrap">
@@ -523,7 +536,7 @@ const Dashboard = () => {
               </div>
 
               {/* ── Recent Conversations panel ── */}
-              <div className="xl:col-span-2 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
+              <div className="xl:col-span-1 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
