@@ -232,7 +232,7 @@ export default function Notifications() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <span className="text-sm font-black text-slate-900 tracking-tighter">
-                          #{esc.po_num}
+                          {esc.po_num}
                         </span>
                         <span style={{ background: pConfig.bg, color: pConfig.color }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg">
                           {pConfig.label}
@@ -263,7 +263,7 @@ export default function Notifications() {
                             const DD = String(d.getDate()).padStart(2, '0');
                             const MM = String(d.getMonth() + 1).padStart(2, '0');
                             const YYYY = d.getFullYear();
-                            return `${DD} ${MM} ${YYYY}`;
+                            return `${DD}/${MM}/${YYYY}`;
                           })()}
                         </div>
                         <div className="flex items-center gap-1.5">
