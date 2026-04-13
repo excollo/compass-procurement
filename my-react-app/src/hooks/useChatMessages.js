@@ -2,16 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 /**
- * Custom hook to fetch and subscribe to real-time chat messages for a PO.
+ * Custom hook to fetch and subscribe to real-time chat messages for a Vendor.
  */
-export default function useChatMessages(selectedPoNum) {
+export default function useChatMessages(vendorPhone) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const channelRef = useRef(null);
 
   useEffect(() => {
-    if (!selectedPoNum) {
+    if (!vendorPhone) {
       setMessages([]);
       setLoading(false);
       return;
@@ -35,7 +35,7 @@ export default function useChatMessages(selectedPoNum) {
       const { data, error: fetchError } = await supabase
         .from('chat_history')
         .select('*')
-        .eq('po_num', selectedPoNum)
+        .eq('vendor_phone', vendorPhone)
         .order('sent_at', { ascending: true });
 
       if (cancelled) return;
@@ -55,14 +55,14 @@ export default function useChatMessages(selectedPoNum) {
 
     // Subscribe to realtime INSERT events
     const channel = supabase
-      .channel(`chat-${selectedPoNum}`)
+      .channel(`vendor-chat-${vendorPhone}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'chat_history',
-          filter: `po_num=eq.${selectedPoNum}`,
+          filter: `vendor_phone=eq.${vendorPhone}`,
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new]);
@@ -72,7 +72,7 @@ export default function useChatMessages(selectedPoNum) {
 
     channelRef.current = channel;
 
-    // Cleanup on PO change or unmount
+    // Cleanup on Vendor change or unmount
     return () => {
       cancelled = true;
       if (channelRef.current) {
@@ -80,7 +80,7 @@ export default function useChatMessages(selectedPoNum) {
         channelRef.current = null;
       }
     };
-  }, [selectedPoNum]);
+  }, [vendorPhone]);
 
   return { messages, loading, error };
 }
