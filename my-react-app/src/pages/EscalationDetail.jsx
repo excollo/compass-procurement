@@ -463,7 +463,7 @@ const EscalationDetail = () => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 no-scrollbar pb-24">
+        <div className="flex-1 overflow-y-auto p-8 no-scrollbar pb-20">
           <div className="max-w-[1600px] mx-auto w-full space-y-6">
             
             {/* Action Meta */}
@@ -482,7 +482,7 @@ const EscalationDetail = () => {
             {/* Top Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                {/* Col 1 */}
-               <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6 space-y-4">
+               <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6 space-y-4 h-full">
                   <div className="flex items-center justify-between">
                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">PO & Vendor Details</h3>
                      <span className="material-symbols-outlined text-slate-200">store</span>
@@ -518,7 +518,7 @@ const EscalationDetail = () => {
                </div>
 
                {/* Col 2 */}
-               <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6 flex flex-col gap-6 relative overflow-hidden">
+               <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6 flex flex-col gap-6 relative overflow-hidden h-full">
                   <div className="flex items-center justify-between z-10">
                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Dual SLA Tracker</h3>
                      <div className="flex gap-1.5 translate-y-[-2px]">
@@ -590,40 +590,31 @@ const EscalationDetail = () => {
                   )}
                </div>
 
-               {/* Col 3 */}
-               <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6 space-y-6">
-                  <div className="flex items-center justify-between">
-                     <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Vendor Performance</h3>
-                     <span className="material-symbols-outlined text-slate-200">analytics</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="text-center">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Fill Rate</p>
-                        <p className="text-2xl font-black text-emerald-500">{escalation.fulfillment_rate}%</p>
-                     </div>
-                     <div className="text-center">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Open Cases</p>
-                        <p className="text-2xl font-black text-slate-900 dark:text-white">3</p>
-                     </div>
-                  </div>
-                  <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-slate-800">
-                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">Fill rate by category (Phase 2 preview)</p>
-                     {[
-                       { l: 'Chemicals', v: 82, c: 'bg-blue-500' },
-                       { l: 'Supplies', v: 68, c: 'bg-orange-500' },
-                       { l: 'Equipment', v: 91, c: 'bg-emerald-500' }
-                     ].map(row => (
-                       <div key={row.l} className="space-y-1">
-                          <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
-                             <span className="text-slate-500">{row.l}</span>
-                             <span className="text-slate-900 dark:text-white">{row.v}%</span>
-                          </div>
-                          <div className="w-full h-1 bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden">
-                             <div className={`h-full ${row.c}`} style={{ width: `${row.v}%` }} />
-                          </div>
-                       </div>
-                     ))}
-                  </div>
+               {/* Col 3 — Escalation Info */}
+               <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6 h-full">
+                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Escalation Info</h3>
+                 <div className="space-y-4">
+                    <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reason</span>
+                       <span className="text-xs font-bold">{REASON_LABELS[escalation.escalation_reason]}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</span>
+                       <span className="text-xs font-bold">{escalation.category}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Created At</span>
+                       <span className="text-xs font-bold font-mono">{new Date(escalation.escalation_created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Priority</span>
+                       <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${PRIORITY_COLORS[escalation.priority]}`}>{escalation.priority}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned To</span>
+                       <span className={`text-xs font-bold ${!escalation.spoc_name ? 'text-blue-500 italic' : ''}`}>{escalation.spoc_name || 'Priya Sharma'}</span>
+                    </div>
+                 </div>
                </div>
             </div>
 
@@ -686,32 +677,23 @@ const EscalationDetail = () => {
                     </div>
                   </div>
 
-                  {/* Info Card */}
-                  <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Escalation Info</h3>
-                    <div className="space-y-4">
-                       <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reason</span>
-                          <span className="text-xs font-bold">{REASON_LABELS[escalation.escalation_reason]}</span>
-                       </div>
-                       <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</span>
-                          <span className="text-xs font-bold">{escalation.category}</span>
-                       </div>
-                       <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Created At</span>
-                          <span className="text-xs font-bold font-mono">{new Date(escalation.escalation_created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                       </div>
-                       <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Priority</span>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${PRIORITY_COLORS[escalation.priority]}`}>{escalation.priority}</span>
-                       </div>
-                       <div className="flex justify-between items-center py-3">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned To</span>
-                          <span className={`text-xs font-bold ${!escalation.spoc_name ? 'text-blue-500 italic' : ''}`}>{escalation.spoc_name || 'Priya Sharma'}</span>
-                       </div>
-                    </div>
-                  </div>
+                  {/* Vendor Performance (Commented Out)
+                  <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6 space-y-6">
+                     <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Vendor Performance</h3>
+                        <span className="material-symbols-outlined text-slate-200">analytics</span>
+                     </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center">
+                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Fill Rate</p>
+                           <p className="text-2xl font-black text-emerald-500">{escalation.fulfillment_rate}%</p>
+                        </div>
+                        <div className="text-center">
+                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Open Cases</p>
+                           <p className="text-2xl font-black text-slate-900 dark:text-white">3</p>
+                        </div>
+                     </div>
+                  */}
                </div>
             </div>
           </div>
