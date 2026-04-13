@@ -5,6 +5,12 @@ import { supabase } from '../lib/supabase';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
+  
+  // If date contains dots (e.g., 28.03.2026), replace with slashes
+  if (typeof dateStr === 'string' && dateStr.includes('.')) {
+    return dateStr.replace(/\./g, '/');
+  }
+
   const d = new Date(dateStr);
   if (isNaN(d)) return dateStr;
   const DD = String(d.getDate()).padStart(2, '0');
@@ -331,7 +337,7 @@ const OrderDetail = () => {
                     </Link>
                     <div className="flex justify-between items-end">
                         <div className="flex items-center gap-6">
-                            <h1 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">PO #{poNum}</h1>
+                            <h1 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">PO {poNum}</h1>
                             
                             <div className="flex items-center gap-3">
                             </div>
