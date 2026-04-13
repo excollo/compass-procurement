@@ -729,46 +729,54 @@ const Chats = () => {
                   </div>
                 </div>
 
-                <div
-                  onClick={() => navigate('/notifications')}
-                  style={{
-                    position: 'relative',
-                    cursor: 'pointer',
-                    padding: '6px',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                  className="hover:bg-slate-50 transition-colors"
-                >
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
-                    style={{ color: '#6B7280' }}>
-                    <path d="M9 2a5 5 0 015 5v3l1.5 2H2.5L4 10V7a5 5 0 015-5z"
-                      stroke="currentColor" strokeWidth="1.3"/>
-                    <path d="M7 14.5a2 2 0 004 0"
-                      stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                  </svg>
-                  {unreadCount > 0 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: '2px',
-                      right: '2px',
-                      background: '#DC2626',
-                      color: '#fff',
-                      fontSize: '9px',
-                      fontWeight: 700,
-                      minWidth: '14px',
-                      height: '14px',
-                      borderRadius: '7px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '0 3px'
-                    }}>
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-xs font-black text-slate-800">Ramesh Kumar</p>
+                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">Admin</p>
+                    </div>
+                    <img alt="User profile" className="w-8 h-8 rounded-full border-2 border-slate-200 shadow-sm"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8ov37m6Ru1jtLXavUm2Wv7-q8IqttbDcSU5OJzUCKT6ZmPdV8o10Gkm2bzBBlUkUAfR7nPEInOWhBPKK0JB-n56VPQC2sJvCZVr9a9eqzujzWSusoB7Pqo3Zl5PSfDCMpzoPbo0JZh5CHcjqc7lATQ1qKELXGJ7WeD5DB3SN3FaTJ4H9VBzP_Fvv51A3UPXtSYL_rtKoK2k8LRfiEklf60DY9c3Hul2Ue3yIjaHQmSa85wLfALExg-6xFvgM8lPDR6WQOIutN4I6d" />
+                    <div
+                      onClick={() => navigate('/notifications')}
+                      style={{
+                        position: 'relative',
+                        cursor: 'pointer',
+                        padding: '6px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
+                        style={{ color: '#6B7280' }}>
+                        <path d="M9 2a5 5 0 015 5v3l1.5 2H2.5L4 10V7a5 5 0 015-5z"
+                          stroke="currentColor" strokeWidth="1.3"/>
+                        <path d="M7 14.5a2 2 0 004 0"
+                          stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                      </svg>
+                      {unreadCount > 0 && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '2px',
+                          right: '2px',
+                          background: '#DC2626',
+                          color: '#fff',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          minWidth: '14px',
+                          height: '14px',
+                          borderRadius: '7px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0 3px'
+                        }}>
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  </div>
               </header>
 
               {/* Chat messages area */}
