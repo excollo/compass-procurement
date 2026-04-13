@@ -51,7 +51,7 @@ ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, ChartToolti
 
 /* KPI Bar Block */
 const KPI_SKELETON = () => (
-  <div className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-slate-100 flex flex-col justify-between h-[120px] animate-pulse">
+  <div className="bg-[var(--color-surface)] p-5 rounded-[1.25rem] shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[var(--color-border)] flex flex-col justify-between h-[120px] animate-pulse">
     <div className="flex items-center gap-2">
       <div className="w-[18px] h-[18px] bg-slate-100 rounded text-transparent">_</div>
       <div className="w-20 h-4 bg-slate-100 rounded"></div>
@@ -75,21 +75,21 @@ const ErrorCard = ({ onRetry }) => (
   </div>
 );
 
-const KPI = ({ icon, iconColor, bgShape, label, value, valueColor, subLabel, isDimmed }) => (
-  <div className={`bg-white p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] border border-slate-100/80 flex flex-col justify-between h-[120px] transition-all hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 cursor-default ${isDimmed ? 'opacity-50 hover:translate-y-0 hover:shadow-sm' : ''}`}>
+const KPI = ({ icon, iconColor, bgShape, label, value, valueColor, subLabel, isDimmed, borderAccent }) => (
+  <div className={`bg-[var(--color-surface)] p-5 rounded-[1.25rem] shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[var(--color-border)] flex flex-col justify-between h-[120px] transition-all hover:shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] cursor-default border-l-[4px] ${borderAccent || 'border-l-transparent'} ${isDimmed ? 'opacity-50' : ''}`}>
     <div className="flex items-center gap-3">
       <div className={`w-8 h-8 rounded-[10px] flex items-center justify-center ${bgShape}`}>
           <span className={`material-symbols-outlined text-[18px] ${iconColor}`}>{icon}</span>
       </div>
-      <span className="text-[13px] font-bold text-slate-500 tracking-tight">{label}</span>
+      <span className="text-[12px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">{label}</span>
     </div>
     <div>
       <div className="flex items-baseline">
-        <h3 className={`text-[32px] font-black tracking-tight leading-none ${valueColor}`}>
+        <h3 className={`text-[28px] font-semibold tracking-tight leading-none text-[var(--color-text-primary)]`}>
           {value}
         </h3>
       </div>
-      <p className="text-[12px] font-medium text-slate-400 mt-1">{subLabel}</p>
+      <p className="text-[12px] font-medium text-[var(--color-text-secondary)] mt-1">{subLabel}</p>
     </div>
   </div>
 );
@@ -97,10 +97,10 @@ const KPI = ({ icon, iconColor, bgShape, label, value, valueColor, subLabel, isD
 /* LIGHT CARD WRAPPER FOR CHARTS (Match App UI) */
 const LightCard = ({ title, subtitle, state, onRetry, heightClass = 'h-[380px]', noPad = false, children }) => {
    return (
-      <div className={`bg-white rounded-[1.25rem] shadow-sm border border-slate-100 flex flex-col overflow-hidden ${heightClass}`}>
-         <div className="p-5 border-b border-slate-100 shrink-0">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{title}</h3>
-            {subtitle && <p className="text-[10px] font-bold text-slate-500 tracking-wider mt-1">{subtitle}</p>}
+      <div className={`bg-[var(--color-surface)] rounded-[1.25rem] shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[var(--color-border)] flex flex-col overflow-hidden ${heightClass}`}>
+         <div className="p-5 border-b border-[var(--color-border)] shrink-0">
+            <h3 className="text-[11px] font-bold text-[var(--color-text-tertiary)] uppercase tracking-[0.1em]">{title}</h3>
+            {subtitle && <p className="text-[10px] font-medium text-slate-500 tracking-wider mt-1">{subtitle}</p>}
          </div>
          <div className={`flex-1 relative flex flex-col ${noPad ? '!p-0' : 'p-6'}`}>
             {state.loading && (
@@ -132,7 +132,7 @@ const DeliveryChart = ({ data }) => {
       labels: ['Full', 'Partial', 'Zero'],
       datasets: [{
          data: [data.full, data.partial, data.zero],
-         backgroundColor: ['#0f172a', '#475569', '#94a3b8'],
+         backgroundColor: ['#059669', '#d97706', '#dc2626'],
          borderColor: '#ffffff',
          borderWidth: 2,
          hoverOffset: 4
@@ -168,7 +168,12 @@ const FillRatePoTypeChart = ({ data }) => {
       labels: data.map(d => [d.po_type, `${d.line_count} lines`]),
       datasets: [{
          data: data.map(d => d.fill_rate),
-         backgroundColor: ['#020617', '#0f172a', '#1e293b', '#334155'],
+         backgroundColor: data.map(d => {
+             if (d.fill_rate >= 90) return '#059669';
+             if (d.fill_rate >= 80) return '#1e40af';
+             if (d.fill_rate >= 70) return '#d97706';
+             return '#dc2626';
+         }),
          borderRadius: 6,
          borderSkipped: false
       }]
@@ -188,20 +193,20 @@ const RegionFillChart = ({ data }) => {
   return (
     <div className="flex flex-col gap-6 overflow-y-auto pr-2 no-scrollbar h-full justify-center">
        {data.map(d => {
-          let color = 'bg-slate-800 drop-shadow-sm';
-          if(d.fill_rate < 75) color = 'bg-slate-900 drop-shadow-sm';
-          else if(d.fill_rate < 90) color = 'bg-slate-700 drop-shadow-sm';
+          let color = 'bg-[var(--color-danger)]';
+          if(d.fill_rate >= 85) color = 'bg-[var(--color-success)]';
+          else if(d.fill_rate >= 75) color = 'bg-[var(--color-warning)]';
 
           return (
              <div key={d.region} className="flex flex-col">
                 <div className="flex justify-between items-end mb-2">
                    <div className="flex items-center gap-3 relative">
-                       <span className="text-slate-900 font-black text-sm uppercase">{d.region}</span>
-                       {d.region === 'KN' && d.suppliers === 1 && <span className="absolute -top-1 left-12 px-2 py-0.5 bg-red-50 text-red-600 text-[8px] font-black tracking-widest rounded border border-red-200 uppercase shrink-0 whitespace-nowrap">SINGLE SUPPLIER RISK</span>}
+                       <span className="text-[var(--color-text-primary)] font-black text-sm uppercase">{d.region}</span>
+                       {d.region === 'KN' && d.suppliers === 1 && <span className="absolute -top-1 left-12 px-2 py-0.5 bg-[var(--color-danger)] text-white text-[8px] font-black tracking-widest rounded border-0 uppercase shrink-0 whitespace-nowrap">SINGLE SUPPLIER RISK</span>}
                    </div>
-                   <span className="text-slate-900 font-black text-sm">{d.fill_rate}%</span>
+                   <span className="text-[var(--color-text-primary)] font-black text-sm">{d.fill_rate}%</span>
                 </div>
-                <div className="w-full bg-slate-100/80 rounded-full h-2 mb-2 overflow-hidden border border-slate-200/40">
+                <div className="w-full bg-[var(--color-neutral-bg)] rounded-full h-2 mb-2 overflow-hidden border border-[var(--color-border)]">
                    <div className={`${color} h-full rounded-full transition-all`} style={{width: `${d.fill_rate}%`}}></div>
                 </div>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{d.lines} lines &middot; {d.suppliers} suppliers &middot; {d.sites} sites</p>
@@ -217,7 +222,7 @@ const PoAgingChart = ({ data }) => {
       labels: data.map(d => d.bucket.replace('d', ' days')),
       datasets: [{
          data: data.map(d => d.count),
-         backgroundColor: ['#475569', '#334155', '#1e293b'],
+         backgroundColor: ['#d97706', '#d03801', '#dc2626'],
          borderRadius: 6,
          borderSkipped: false
       }]
@@ -234,7 +239,7 @@ const PoAgingChart = ({ data }) => {
      <div className="relative h-full min-h-[220px]">
         <Bar data={cData} options={opts} />
         <div className="absolute top-[25%] left-[50%] -translate-x-[40%] text-center pointer-events-none">
-           <span className="text-[10px] italic text-slate-500 font-medium">&larr; critical recovery window</span>
+           <span className="text-[10px] bg-[var(--color-danger-bg)] text-[var(--color-danger-text)] font-bold px-2 py-1 rounded">&larr; critical recovery window</span>
         </div>
      </div>
    )
@@ -248,7 +253,14 @@ const SupplierPerfChart = ({ data }) => {
       }),
       datasets: [{
          data: data.map(d => d.supplier_count),
-         backgroundColor: ['#ef4444', '#0f172a', '#1e293b', '#334155', '#475569', '#64748b'],
+         backgroundColor: data.map(d => {
+             if (d.bucket === '0%') return '#dc2626';
+             if (d.bucket === '1-50%') return '#f98080';
+             if (d.bucket === '51-75%') return '#d97706';
+             if (d.bucket === '76-90%') return '#1e40af';
+             if (d.bucket === '91-95%') return '#0694a2';
+             return '#059669';
+         }),
          borderRadius: 6,
          borderSkipped: false
       }]
@@ -268,23 +280,22 @@ const TopVendors = ({ data, navigate }) => {
    const maxQty = Math.max(...data.map(d => d.open_qty));
    return (
       <div className="flex flex-col flex-1 divide-y divide-slate-100 overflow-y-auto no-scrollbar">
-         {data.map((d, i) => {
-            let color = 'bg-slate-700';
-            if(i < 2) color = 'bg-slate-900 shadow-sm';
-            else if(i < 5) color = 'bg-slate-800';
+          {data.map((d, i) => {
+            let color = 'bg-[var(--color-warning)]';
+            if(i < 2) color = 'bg-[var(--color-danger)]';
 
             return (
-               <div key={d.vendor_name} onClick={() => navigate('/vendors')} className="py-4 px-6 hover:bg-slate-50 cursor-pointer transition-colors group">
+               <div key={d.vendor_name} onClick={() => navigate('/vendors')} className="py-4 px-6 hover:bg-[var(--color-surface-muted)] cursor-pointer transition-colors group">
                   <div className="flex justify-between items-center mb-2">
                      <div className="flex items-center gap-3 overflow-hidden">
-                        <span className="text-slate-900 font-bold text-sm truncate">{d.vendor_name}</span>
-                        {i < 2 && <span className="px-2.5 py-1 bg-red-50 text-red-600 text-[9px] font-black tracking-widest rounded-lg border border-red-200 uppercase shrink-0">HIGH RISK</span>}
+                        <span className="text-[var(--color-text-primary)] font-bold text-sm truncate">{d.vendor_name}</span>
+                        {i < 2 && <span className="px-2.5 py-1 bg-[var(--color-danger)] text-white text-[9px] font-black tracking-widest rounded-lg border-0 uppercase shrink-0">HIGH RISK</span>}
                      </div>
-                     <span className="text-slate-900 font-black text-sm shrink-0">
+                     <span className="text-[var(--color-text-primary)] font-black text-sm shrink-0">
                         {d.open_qty >= 1000 ? (d.open_qty/1000).toFixed(1) + 'K' : d.open_qty}
                      </span>
                   </div>
-                  <div className="w-full bg-slate-100/80 rounded-full h-[6px] mb-2 overflow-hidden border border-slate-200/40">
+                  <div className="w-full bg-[var(--color-neutral-bg)] rounded-full h-[6px] mb-2 overflow-hidden border border-[var(--color-border)]">
                      <div className={`${color} h-full group-hover:brightness-110 transition-all rounded-full drop-shadow-sm`} style={{width: `${(d.open_qty/maxQty)*100}%`}}></div>
                   </div>
                   <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
@@ -304,13 +315,14 @@ const SitesAttention = ({ data }) => {
       <div className="flex flex-col flex-1 divide-y divide-slate-100 overflow-y-auto no-scrollbar">
          {data.map((d, i) => {
             const rank = i + 1;
-            let rankColor = 'bg-slate-100 text-slate-500';
-            if(rank <= 3) rankColor = 'bg-slate-900 text-white shadow-md';
-            else if(rank <= 7) rankColor = 'bg-slate-800 text-white shadow-md';
+            let rankColor = 'bg-[var(--color-warning)] text-white';
+            if(rank === 1) rankColor = 'bg-[#771d1d] text-white';
+            else if(rank === 2) rankColor = 'bg-[#9b1c1c] text-white';
+            else if(rank === 3) rankColor = 'bg-[var(--color-danger)] text-white';
 
-            let fillBadge = 'bg-slate-100 text-slate-700 border-slate-200/60 shadow-sm';
-            if(d.fill_rate < 50) fillBadge = 'bg-slate-800 text-white shadow-sm';
-            else if(d.fill_rate <= 75) fillBadge = 'bg-slate-700 text-white shadow-sm';
+            let fillBadge = 'bg-[var(--color-danger-bg)] text-[var(--color-danger-text)] border-[var(--color-danger)]';
+            if(d.fill_rate >= 40) fillBadge = 'bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] border-[var(--color-warning)]';
+            if(d.fill_rate >= 75) fillBadge = 'bg-[var(--color-success-bg)] text-[var(--color-success-text)] border-[var(--color-success)]';
 
             const needsBorder = d.fill_rate < 40;
 
@@ -343,11 +355,11 @@ const AiSignalsPanel = ({ data, navigate }) => {
   const toggle = (i) => setExpanded(prev => ({...prev, [i]: !prev[i]}));
   
   const getSeverityConf = (s) => {
-     if(s==='critical') return { dot: 'bg-red-500', pill: 'bg-red-50 text-red-600 border-red-200', label: 'CRITICAL', border: 'border-l-[3px] border-red-500' };
-     if(s==='warning')  return { dot: 'bg-amber-500', pill: 'bg-amber-50 text-amber-600 border-amber-200', label: 'WARNING', border: 'border-l-[3px] border-transparent' };
-     if(s==='insight')  return { dot: 'bg-blue-500', pill: 'bg-blue-50 text-blue-600 border-blue-200', label: 'INSIGHT', border: 'border-l-[3px] border-transparent' };
-     if(s==='ready')    return { dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-600 border-emerald-200', label: 'READY', border: 'border-l-[3px] border-transparent' };
-     return { dot: 'bg-slate-400', pill: 'bg-slate-100 text-slate-600 border-slate-200', label: 'NOTE', border: 'border-l-[3px] border-transparent' };
+     if(s==='critical') return { dot: 'bg-[var(--color-danger)]', pill: 'bg-[var(--color-danger)] text-white', label: 'CRITICAL', border: 'border-l-[4px] border-[var(--color-danger)] bg-[var(--color-danger-bg)] bg-opacity-40' };
+     if(s==='warning')  return { dot: 'bg-[var(--color-warning)]', pill: 'bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] border-[var(--color-warning)]', label: 'WARNING', border: 'border-l-[4px] border-[var(--color-warning)] bg-[var(--color-warning-bg)] bg-opacity-30' };
+     if(s==='insight')  return { dot: 'bg-[var(--color-brand-primary)]', pill: 'bg-[var(--color-brand-light)] text-[var(--color-brand-primary)] border-[var(--color-brand-primary)]', label: 'INSIGHT', border: 'border-l-[4px] border-[var(--color-brand-primary)] bg-[var(--color-brand-light)] bg-opacity-50' };
+     if(s==='ready')    return { dot: 'bg-[var(--color-success)]', pill: 'bg-[var(--color-success-bg)] text-[var(--color-success-text)] border-[var(--color-success)]', label: 'READY', border: 'border-l-[4px] border-transparent' };
+     return { dot: 'bg-[var(--color-neutral)]', pill: 'bg-[var(--color-neutral-bg)] text-[var(--color-neutral-text)] border-[var(--color-border)]', label: 'NOTE', border: 'border-l-[4px] border-transparent' };
   }
 
   return (
@@ -360,10 +372,10 @@ const AiSignalsPanel = ({ data, navigate }) => {
            return (
               <React.Fragment key={i}>
                 {showDivider && <div className="h-[1px] bg-slate-100 my-3 mx-6"></div>}
-                <div onClick={() => toggle(i)} className={`py-4 pr-6 pl-5 mx-3 hover:bg-slate-50 transition-colors cursor-pointer rounded-xl select-none ${conf.border}`}>
-                   <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
-                      <div className={`w-2 h-2 rounded-full ${conf.dot} shrink-0 hidden md:block ml-2`}></div>
-                      <span className={`px-2 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg border ${conf.pill} shrink-0 w-[80px] text-center shadow-sm`}>{conf.label}</span>
+                  <div onClick={() => toggle(i)} className={`py-4 pr-6 pl-5 mx-3 hover:brightness-95 transition-colors cursor-pointer rounded-xl select-none ${conf.border}`}>
+                     <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
+                        <div className={`w-2.5 h-2.5 rounded-full ${conf.dot} shrink-0 hidden md:block ml-2`}></div>
+                        <span className={`px-2 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg border ${conf.pill} shrink-0 w-[80px] text-center shadow-sm`}>{conf.label}</span>
                       <span className="text-slate-900 font-bold text-[13px] shrink-0">{sig.title}</span>
                       <span className="text-slate-500 text-[13px] truncate flex-1 block md:inline-block font-medium">{!expanded[i] ? sig.description : ''}</span>
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-3 py-1.5 rounded-lg border border-slate-200 shrink-0 bg-white shadow-sm">{sig.metric}</span>
@@ -371,7 +383,7 @@ const AiSignalsPanel = ({ data, navigate }) => {
                    {expanded[i] && (
                       <div className="mt-4 md:ml-[132px] pr-4 pb-2">
                          <p className="text-slate-600 text-[13px] leading-relaxed font-medium">{sig.description}</p>
-                         <button onClick={(e) => { e.stopPropagation(); navigate(sig.severity === 'critical' ? '/orders' : '/dashboard') }} className="mt-4 px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-colors shadow-sm">
+                         <button onClick={(e) => { e.stopPropagation(); navigate(sig.severity === 'critical' ? '/orders' : '/dashboard') }} className="mt-4 px-6 py-2.5 bg-[var(--color-brand-primary)] hover:brightness-110 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-colors shadow-sm">
                              Take Action &rarr;
                          </button>
                       </div>
@@ -429,22 +441,29 @@ export default function DataExplorer() {
   const kpiData = apis.overview.data;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--color-page-bg)' }}>
       <Sidebar />
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
         {/* App Shell Header */}
-        <header className="flex justify-between items-center h-16 px-8 w-full bg-white border-b border-slate-100 shadow-sm z-40 flex-shrink-0">
+        <header
+          className="flex justify-between items-center h-16 px-8 w-full z-40 flex-shrink-0"
+          style={{
+            background: 'var(--color-surface)',
+            borderBottom: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
           <div className="flex items-center gap-6">
-            <h1 className="text-base font-black tracking-tighter text-slate-900 uppercase font-headline">
+            <h1 className="text-base font-bold tracking-tight uppercase font-headline" style={{ color: 'var(--color-text-primary)' }}>
               Procurement&nbsp;Ops
             </h1>
           </div>
 
           <div className="flex items-center gap-3 ml-2">
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-black text-slate-800">Alex Rivera</p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider">Ops Manager</p>
+              <p className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>Ramesh Kumar</p>
+              <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Admin</p>
             </div>
             <img 
                alt="User profile" 
@@ -460,11 +479,11 @@ export default function DataExplorer() {
             
             {/* Page Title & Top actions */}
             <div className="flex justify-between items-end">
-               <div>
-                  <h2 className="text-3xl font-black text-slate-900 font-headline tracking-tighter uppercase leading-none">
-                     DATA EXPLORER
+             <div>
+                  <h2 className="text-[28px] font-bold font-headline tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>
+                     Data Explorer
                   </h2>
-                  <p className="text-slate-400 font-medium mt-1.5 text-sm">
+                  <p className="font-medium mt-2 text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
                      AI-powered procurement intelligence · Live data
                   </p>
                </div>
@@ -479,7 +498,13 @@ export default function DataExplorer() {
                   <button 
                      onClick={fetchAll} 
                      disabled={isRefreshing}
-                     className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest rounded-xl border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all disabled:opacity-50 ml-2 shadow-sm"
+                     className="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-[var(--radius-btn)] transition-all disabled:opacity-50 ml-2"
+                     style={{
+                       background: 'var(--color-surface-muted)',
+                       color: 'var(--color-text-secondary)',
+                       border: '1px solid var(--color-border)',
+                       boxShadow: 'var(--shadow-sm)',
+                     }}
                   >
                      <span className={`material-symbols-outlined text-[16px] ${isRefreshing ? 'animate-spin' : ''}`}>sync</span>
                      {isRefreshing ? 'Syncing…' : 'Refresh'}
@@ -497,28 +522,33 @@ export default function DataExplorer() {
               ) : apis.overview.data ? (
                 <>
                   <KPI 
-                    icon="check_circle" iconColor="text-white" bgShape="bg-slate-900"
-                    label="Fill Rate" value={`${kpiData.overall_fill_rate}%`} valueColor="text-slate-900" 
+                    icon="check_circle" iconColor="text-[var(--color-success)]" bgShape="bg-[var(--color-success-bg)]"
+                    borderAccent="border-[var(--color-success)]"
+                    label="Fill Rate" value={`${kpiData.overall_fill_rate}%`} 
                     subLabel={`${kpiData.full_lines} full · ${kpiData.partial_lines} partial`} 
                   />
                   <KPI 
-                    icon="alarm" iconColor="text-white" bgShape="bg-slate-900"
-                    label="Overdue Lines" value={kpiData.overdue_lines} valueColor="text-slate-900" 
+                    icon="alarm" iconColor="text-[var(--color-warning)]" bgShape="bg-[var(--color-warning-bg)]"
+                    borderAccent="border-[var(--color-warning)]"
+                    label="Overdue Lines" value={kpiData.overdue_lines} 
                     subLabel={`avg ${kpiData.avg_days_overdue} days late`} 
                   />
                   <KPI 
-                    icon="file_copy" iconColor="text-white" bgShape="bg-slate-900"
-                    label="Open POs" value={kpiData.open_pos_count} valueColor="text-slate-900" 
+                    icon="file_copy" iconColor="text-[var(--color-brand-primary)]" bgShape="bg-[var(--color-brand-light)]"
+                    borderAccent="border-[var(--color-brand-primary)]"
+                    label="Open POs" value={kpiData.open_pos_count} 
                     subLabel={`across ${kpiData.open_vendors_count} vendors`} 
                   />
                   <KPI 
-                    icon="warning" iconColor="text-white" bgShape="bg-slate-900"
-                    label="Zero Deliveries" value={kpiData.zero_lines} valueColor="text-slate-900" 
+                    icon="warning" iconColor="text-[var(--color-danger)]" bgShape="bg-[var(--color-danger-bg)]"
+                    borderAccent="border-[var(--color-danger)]"
+                    label="Zero Deliveries" value={kpiData.zero_lines} 
                     subLabel={`${kpiData.zero_pct}% of all lines`} 
                   />
                   <KPI 
-                    icon="chat_bubble" iconColor="text-slate-400" bgShape="bg-slate-800"
-                    label="Response Rate" value="—" valueColor="text-slate-400" 
+                    icon="chat_bubble" iconColor="text-[var(--color-neutral)]" bgShape="bg-[var(--color-neutral-bg)]"
+                    borderAccent="border-[var(--color-border-strong)]"
+                    label="Response Rate" value="—" 
                     subLabel="Activates with WhatsApp" isDimmed={true} 
                   />
                 </>
