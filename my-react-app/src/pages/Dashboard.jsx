@@ -264,21 +264,34 @@ const Dashboard = () => {
     } catch (err) { console.error('KPI fetch', err); }
   }, []); // eslint-disable-line
 
-  /* ─── fetch convos (5 fixed POs) ───────────────────────── */
+  /* ─── fetch vendor convos (Grouping) ────────────────── */
   const fetchConvos = useCallback(async () => {
     setConvosLoading(true);
     try {
       const { data, error } = await supabase
-        .from('open_po_detail')
-        .select('po_num, vendor_name, delivery_date')
-        .in('po_num', FIXED_POS);
+        .from('selected_open_po_line_items')
+        .select('po_num, vendor_name, vendor_phone, delivery_date')
+        .limit(100);
+      
       if (error) throw error;
-      // deduplicate by po_num, preserve FIXED_POS order
-      const map = {};
+      
+      // Group by vendor_phone to show unique vendor threads
+      const vendors = {};
       (data || []).forEach(row => {
-        if (!map[row.po_num]) map[row.po_num] = row;
+        const phone = row.vendor_phone || 'no-phone';
+        if (!vendors[phone]) {
+          vendors[phone] = {
+            vendor_name: row.vendor_name || 'Unknown Vendor',
+            vendor_phone: phone,
+            po_num: row.po_num, // representative PO for linking
+            delivery_date: row.delivery_date,
+            po_count: 0
+          };
+        }
+        vendors[phone].po_count++;
       });
-      setConvos(FIXED_POS.map(p => map[p]).filter(Boolean));
+      
+      setConvos(Object.values(vendors).slice(0, 8)); // Top 8 vendors
     } catch (err) {
       console.error('Convos fetch', err);
     } finally { setConvosLoading(false); }
@@ -601,8 +614,8 @@ const Dashboard = () => {
                       <span className="material-symbols-outlined text-lg" style={{ color: 'var(--color-brand-primary)' }}>forum</span>
                     </div>
                     <div>
-                      <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--color-text-primary)' }}>Recent Conversations</h3>
-                      <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>Click a row to open the chat</p>
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--color-text-primary)' }}>Recent Vendor Chats</h3>
+                      <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>Click a vendor to open the thread</p>
                     </div>
                   </div>
                 </div>
@@ -625,22 +638,24 @@ const Dashboard = () => {
                       <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">No conversations found</p>
                     </div>
                   ) : (
-                    convos.map((po) => (
+                    convos.map((v) => (
                       <div
-                        key={po.po_num}
-                        onClick={() => navigate(`/chats?po=${po.po_num}`)}
+                        key={v.vendor_phone}
+                        onClick={() => navigate(`/chats?po=${v.po_num}`)}
                         className="flex items-center gap-4 px-6 py-3.5 cursor-pointer transition-all group"
                         style={{ ':hover': { background: 'var(--color-brand-light)' } }}
                       >
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm flex-shrink-0" style={{ background: 'var(--color-brand-light)', color: 'var(--color-brand-primary)' }}>
-                          {(po.vendor_name || po.po_num).charAt(0).toUpperCase()}
+                          {(v.vendor_name).charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>PO-{po.po_num}</p>
-                          <p className="text-[10px] font-medium truncate mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{po.vendor_name || '—'}</p>
-                          {po.delivery_date && (
-                            <p className={`text-[9px] font-bold mt-0.5 ${ETD_COLOR(po.delivery_date)}`}>
-                              ETD: {fmtDate(po.delivery_date)}
+                          <p className="text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>{v.vendor_name || 'Unknown Vendor'}</p>
+                          <p className="text-[10px] font-medium truncate mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+                            {v.po_count} {v.po_count === 1 ? 'Order' : 'Orders'} active
+                          </p>
+                          {v.delivery_date && (
+                            <p className={`text-[9px] font-bold mt-0.5 ${ETD_COLOR(v.delivery_date)}`}>
+                              Next: {fmtDate(v.delivery_date)}
                             </p>
                           )}
                         </div>

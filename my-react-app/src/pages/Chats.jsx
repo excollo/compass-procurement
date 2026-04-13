@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 import useChatMessages from '../hooks/useChatMessages';
@@ -78,12 +78,14 @@ const formatDeliveryDate = (dateStr) => {
 };
 
 // ── Compass opening message (pinned top of every chat) ──────────────────────
-const CompassOpeningMessage = ({ po }) => {
-  if (!po) return null;
-  const deliveryDate = formatDeliveryDate(po.delivery_date);
+const CompassOpeningMessage = ({ vendor }) => {
+  if (!vendor || !vendor.pos) return null;
+
+  // Format the PO numbers: "PO-123, PO-456"
+  const poListStr = vendor.pos.map(p => `#${p.po_num}`).join(', ');
+
   return (
-    <div className="compass-opening-wrap">
-      {/* Compass brand row */}
+    <div className="compass-opening-wrap" style={{ marginBottom: '24px' }}>
       <div className="compass-opening-inner">
         {/* pin badge */}
         <div className="compass-pin-badge">
@@ -104,12 +106,16 @@ const CompassOpeningMessage = ({ po }) => {
             <div className="compass-bubble-body">
               <p>Hi there! 👋 I'm your <strong>Compass</strong> procurement assistant.</p>
               <p style={{ marginTop: '8px' }}>
-                I see you have <strong>Order #{po.po_num}</strong> scheduled for delivery on{' '}
-                <strong>{deliveryDate}</strong>.
+                I'm tracking the deliveries for <strong>{vendor.vendor_name}</strong> 
+                {vendor.pos.length > 1 ? (
+                  <> across multiple orders: <strong>{poListStr}</strong>.</>
+                ) : (
+                  <> regarding order: <strong>#{vendor.pos[0]?.po_num}</strong>.</>
+                )}
               </p>
-              <p style={{ marginTop: '8px' }}>Will you be able to deliver this order on time? ✅</p>
+              <p style={{ marginTop: '8px' }}>Will you be able to deliver these on time? ✅</p>
             </div>
-            <p className="compass-bubble-time">Opening message</p>
+            <p className="compass-bubble-time">System Message</p>
           </div>
         </div>
       </div>
@@ -214,10 +220,10 @@ const Chats = () => {
     }
   }, []);
 
-  const [poData, setPoData] = useState([]);
-  const [selectedPo, setSelectedPo] = useState(null);
+  const [vendorData, setVendorData] = useState([]);
+  const [selectedVendor, setSelectedVendor] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [messagesByPO, setMessagesByPO] = useState({});
+  const [messagesByVendor, setMessagesByVendor] = useState({});
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [threadState, setThreadState] = useState('bot_active');
@@ -227,13 +233,14 @@ const Chats = () => {
   const tick = useSLATimer();
   const messagesEndRef = useRef(null);
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  // Fetch chat messages for selected PO using the custom hook
+  // Fetch chat messages for selected Vendor using the custom hook
   const {
     messages: chatMessages,
     loading: chatLoading,
     error: chatError,
-  } = useChatMessages(selectedPo?.po_num);
+  } = useChatMessages(selectedVendor?.vendor_phone);
 
   // Auto scroll when messages change
   useEffect(() => {
@@ -243,58 +250,59 @@ const Chats = () => {
   }, [chatMessages]);
 
   useEffect(() => {
-    const fetchPOData = async () => {
-      const posToFetch = [
-        '4100259330',
-        '4100260294',
-        '4100260367',
-        '4100260584',
-        '4100260654'
-      ];
-
+    const fetchVendorData = async () => {
       const { data, error } = await supabase
-        .from('open_po_detail')
-        .select('*')
-        .in('po_num', posToFetch);
+        .from('selected_open_po_line_items')
+        .select('*');
 
       if (!error && data) {
-        // Just take the first row per PO for the header
-        const uniquePOs = [];
-        const seen = new Set();
+        // Group by unique vendor (phone is our key for chat threads)
+        const vendors = {};
         data.forEach(item => {
-          if (!seen.has(item.po_num)) {
-            seen.add(item.po_num);
-            uniquePOs.push(item);
+          const phone = item.vendor_phone || 'no-phone';
+          if (!vendors[phone]) {
+            vendors[phone] = {
+              vendor_name: item.vendor_name || 'Unknown Vendor',
+              vendor_phone: phone,
+              vendor_code: item.vendor_code,
+              pos: []
+            };
           }
+          vendors[phone].pos.push(item);
         });
-        setPoData(uniquePOs);
+        
+        const vendorList = Object.values(vendors);
+        setVendorData(vendorList);
 
-        // Fetch chat messages for all sidebar POs
-        const poNums = uniquePOs.map(p => p.po_num);
+        // Fetch chat messages for all vendors to populate sidebar previews
+        const phones = vendorList.map(v => v.vendor_phone);
 
         const { data: allMessages } = await supabase
           .from('chat_history')
-          .select('po_num, sender_type, sent_at, communication_state')
-          .in('po_num', poNums)
+          .select('vendor_phone, sender_type, sent_at, communication_state')
+          .in('vendor_phone', phones)
           .order('sent_at', { ascending: true });
 
         const grouped = {};
         allMessages?.forEach(msg => {
-          if (!grouped[msg.po_num]) grouped[msg.po_num] = [];
-          grouped[msg.po_num].push(msg);
+          if (!grouped[msg.vendor_phone]) grouped[msg.vendor_phone] = [];
+          grouped[msg.vendor_phone].push(msg);
         });
 
-        setMessagesByPO(grouped);
+        setMessagesByVendor(grouped);
 
-        // If coming from Dashboard with ?po=XXXX, open that PO
+        // Selection logic: check URL param first, then default to first vendor
         const requestedPo = searchParams.get('po');
-        const match = requestedPo && uniquePOs.find(p => p.po_num === requestedPo);
-        setSelectedPo(match || (uniquePOs.length > 0 ? uniquePOs[0] : null));
+        let initialVendor = null;
+        if (requestedPo) {
+          initialVendor = vendorList.find(v => v.pos.some(p => p.po_num === requestedPo));
+        }
+        setSelectedVendor(initialVendor || (vendorList.length > 0 ? vendorList[0] : null));
       }
       setLoading(false);
     };
 
-    fetchPOData();
+    fetchVendorData();
 
     // fetch unread count on mount
     const fetchCount = async () => {
@@ -334,11 +342,11 @@ const Chats = () => {
         { event: 'INSERT', schema: 'public', table: 'chat_history' },
         (payload) => {
           const msg = payload.new;
-          setMessagesByPO(prev => {
-            const current = prev[msg.po_num] || [];
+          setMessagesByVendor(prev => {
+            const current = prev[msg.vendor_phone] || [];
             return {
               ...prev,
-              [msg.po_num]: [...current, msg]
+              [msg.vendor_phone]: [...current, msg]
             };
           });
         }
@@ -351,15 +359,19 @@ const Chats = () => {
     };
   }, [searchParams]);
 
-  // Fetch thread_state when selected PO changes
+  // Fetch thread_state when selected Vendor changes
   useEffect(() => {
-    if (!selectedPo?.po_num) return;
+    if (!selectedVendor?.pos?.length) return;
+
+    // We check the first PO as a representative for the thread state
+    // In a mature multi-PO system, we might have a vendor-level thread_state
+    const mainPo = selectedVendor.pos[0].po_num;
 
     const fetchThreadState = async () => {
       const { data, error } = await supabase
         .from('selected_open_po_line_items')
         .select('thread_state')
-        .eq('po_num', selectedPo.po_num)
+        .eq('po_num', mainPo)
         .maybeSingle();
 
       if (data) {
@@ -368,21 +380,22 @@ const Chats = () => {
     };
 
     fetchThreadState();
-  }, [selectedPo?.po_num]);
+  }, [selectedVendor?.vendor_phone]);
 
   // Real-time thread_state subscription
   useEffect(() => {
-    if (!selectedPo?.po_num) return;
+    if (!selectedVendor?.pos?.length) return;
+    const mainPo = selectedVendor.pos[0].po_num;
 
     const channel = supabase
-      .channel(`thread-state-${selectedPo.po_num}`)
+      .channel(`thread-state-${mainPo}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'selected_open_po_line_items',
-          filter: `po_num=eq.${selectedPo.po_num}`
+          filter: `po_num=eq.${mainPo}`
         },
         (payload) => {
           if (payload.new.thread_state) {
@@ -395,45 +408,45 @@ const Chats = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedPo?.po_num]);
+  }, [selectedVendor?.vendor_phone]);
 
   const handleTakeOver = async () => {
-    if (!selectedPo?.po_num) return;
+    if (!selectedVendor?.pos?.length) return;
     setTakingOver(true);
+    const mainPo = selectedVendor.pos[0].po_num;
 
     try {
       const res = await fetch(`${import.meta.env.VITE_VENDOR_BACKEND_URL}/api/takeover`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          po_num: selectedPo.po_num,
+          po_num: mainPo,
           operator_name: 'Alex Rivera'
         })
       });
 
-      if (!res.ok) throw new Error(`Takeover failed: ${res.status}. Check if your backend is running.`);
+      if (!res.ok) throw new Error(`Takeover failed: ${res.status}`);
       
-      // Optimistic update for better UX
       setThreadState('human_controlled');
-      console.log(`✅ Took over PO ${selectedPo.po_num}`);
     } catch (err) {
       console.error('Takeover failed:', err);
-      alert(`Takeover failed. Please ensure VITE_VENDOR_BACKEND_URL is set in .env and the backend is running at ${import.meta.env.VITE_VENDOR_BACKEND_URL}`);
+      alert('Takeover failed. Check backend connection.');
     } finally {
       setTakingOver(false);
     }
   };
 
   const handleHandBack = async () => {
-    if (!selectedPo?.po_num) return;
+    if (!selectedVendor?.pos?.length) return;
     setHandingBack(true);
+    const mainPo = selectedVendor.pos[0].po_num;
 
     try {
       const res = await fetch(`${import.meta.env.VITE_VENDOR_BACKEND_URL}/api/handback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          po_num: selectedPo.po_num,
+          po_num: mainPo,
           operator_name: 'Alex Rivera'
         })
       });
@@ -441,33 +454,32 @@ const Chats = () => {
       if (!res.ok) throw new Error(`Hand back failed: ${res.status}`);
       
       setThreadState('bot_active');
-      console.log(`✅ Bot resumed for PO ${selectedPo.po_num}`);
     } catch (err) {
       console.error('Hand back failed:', err);
-      alert('Hand back failed. Check backend logs.');
+      alert('Hand back failed.');
     } finally {
       setHandingBack(false);
     }
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedPo || sending) return;
+    if (!newMessage.trim() || !selectedVendor || sending) return;
     
     setSending(true);
     const messageText = newMessage.trim();
-    setNewMessage(''); // Clear immediately for UX
+    setNewMessage(''); 
 
     try {
       const res = await fetch(`${import.meta.env.VITE_VENDOR_BACKEND_URL}/api/chat-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          po_id: selectedPo.po_num,
+          po_id: selectedVendor.pos[0].po_num, // Targeted at the main PO for back-compat
           sender_type: 'operator',
           sender_label: 'Compass Procurement Team',
           message_text: messageText,
-          vendor_phone: selectedPo.vendor_phone || '',
-          supplier_name: selectedPo.vendor_name || '',
+          vendor_phone: selectedVendor.vendor_phone,
+          supplier_name: selectedVendor.vendor_name,
           intent: null,
           escalate: false
         })
@@ -476,7 +488,7 @@ const Chats = () => {
       if (!res.ok) throw new Error(`Send failed: ${res.status}`);
     } catch (err) {
       console.error('Error sending message:', err);
-      setNewMessage(messageText); // Restore on failure
+      setNewMessage(messageText);
       alert('Failed to send message');
     } finally {
       setSending(false);
@@ -527,42 +539,43 @@ const Chats = () => {
   // Check for breaches every 10 seconds
   useEffect(() => {
     const checkBreaches = () => {
-      poData.forEach(po => {
-        const messages = messagesByPO[po.po_num] || [];
+      vendorData.forEach(vendor => {
+        const messages = messagesByVendor[vendor.vendor_phone] || [];
         const sla = computeResponseSLA(messages, 0.5);
         if (sla && sla.breached) {
-          escalatePO(po, sla);
+          // coordinate auto-escalation for the main active PO
+          const mainPo = vendor.pos[0];
+          escalatePO(mainPo, sla);
         }
       });
     };
 
     const interval = setInterval(checkBreaches, 10000);
     return () => clearInterval(interval);
-  }, [poData, messagesByPO]);
+  }, [vendorData, messagesByVendor]);
 
   // Bot escalation sync watcher
   useEffect(() => {
-    if (!selectedPo) return;
+    if (!selectedVendor?.pos?.length) return;
+    const mainPo = selectedVendor.pos[0];
 
-    const messages = messagesByPO[selectedPo.po_num] || [];
+    const messages = messagesByVendor[selectedVendor.vendor_phone] || [];
     const latestBotMsg = [...messages].reverse().find(m => m.sender_type === 'bot' || m.sender_type === 'assistant');
 
     if (latestBotMsg && latestBotMsg.escalate === true && threadState !== 'escalated') {
-      console.log('🗳️ Bot escalation detected, syncing DB...');
-      
       const syncEscalation = async () => {
         try {
           // 1. Update PO thread_state to escalated
           await supabase
             .from('selected_open_po_line_items')
             .update({ thread_state: 'escalated' })
-            .eq('po_num', selectedPo.po_num);
+            .eq('po_num', mainPo.po_num);
 
           // 2. Ensure record exists in escalations table
           const { data: existing } = await supabase
             .from('escalations')
             .select('id')
-            .eq('po_num', selectedPo.po_num)
+            .eq('po_num', mainPo.po_num)
             .eq('status', 'open')
             .maybeSingle();
 
@@ -577,11 +590,11 @@ const Chats = () => {
             await supabase
               .from('escalations')
               .insert([{
-                po_num: selectedPo.po_num,
-                vendor_code: selectedPo.vendor_code,
-                vendor_name: selectedPo.vendor_name,
-                delivery_site: selectedPo.delivery_site || 'TBD',
-                delivery_date: selectedPo.delivery_date,
+                po_num: mainPo.po_num,
+                vendor_code: mainPo.vendor_code,
+                vendor_name: mainPo.vendor_name,
+                delivery_site: mainPo.delivery_site || 'TBD',
+                delivery_date: mainPo.delivery_date,
                 escalation_reason: reasonMap[latestBotMsg.intent] || 'other',
                 reason_detail: latestBotMsg.message_text,
                 priority: latestBotMsg.intent === 'REJECTED' ? 'critical' : 'high',
@@ -591,7 +604,6 @@ const Chats = () => {
               }]);
           }
 
-          // Update local state
           setThreadState('escalated');
         } catch (err) {
           console.error('Failed to sync bot escalation:', err);
@@ -600,41 +612,39 @@ const Chats = () => {
 
       syncEscalation();
     }
-  }, [selectedPo, messagesByPO, threadState]);
+  }, [selectedVendor, messagesByVendor, threadState]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background max-h-screen">
       <Sidebar />
       <main className="flex-1 flex overflow-hidden w-full">
-        {/* PO List Sidebar */}
+        {/* Vendor List Sidebar */}
         <section className="w-80 flex flex-col bg-surface-container-low border-r border-outline-variant/20 h-full">
           <div className="p-6 flex-shrink-0">
             <h2 className="text-xl font-bold text-on-surface mb-4">Vendor Chats</h2>
             <div className="relative">
-              <input className="w-full bg-surface-container-lowest border-none rounded-lg text-sm px-10 py-2.5 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50" placeholder="Search POs..." type="text" />
+              <input className="w-full bg-surface-container-lowest border-none rounded-lg text-sm px-10 py-2.5 focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50" placeholder="Search Vendors..." type="text" />
               <span className="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant/50 text-sm">search</span>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto px-4 space-y-2 no-scrollbar pb-4">
             {loading ? (
               <div className="p-4 text-center text-on-surface-variant text-sm font-bold">Loading chats...</div>
-            ) : poData.map((po) => {
-              const isActive = selectedPo?.po_num === po.po_num;
+            ) : vendorData.map((vendor) => {
+              const isActive = selectedVendor?.vendor_phone === vendor.vendor_phone;
               return (
                 <div
-                  key={po.po_num}
-                  onClick={() => setSelectedPo(po)}
+                  key={vendor.vendor_phone}
+                  onClick={() => setSelectedVendor(vendor)}
                   className={`p-4 rounded-xl cursor-pointer transition-all ${isActive
                     ? 'bg-surface-container-lowest border-l-4 border-primary shadow-sm group'
                     : 'hover:bg-surface-container-highest/30 border-l-4 border-transparent'
                     }`}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className={`text-[10px] font-bold uppercase tracking-widest ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
-                      PO-{po.po_num}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-sm text-on-surface truncate">{po.vendor_name}</h3>
+                  <h3 className="font-bold text-sm text-on-surface truncate">{vendor.vendor_name}</h3>
+                  <p className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest mt-0.5">
+                    {vendor.pos.length} {vendor.pos.length === 1 ? 'Active PO' : 'Active POs'}
+                  </p>
                   
                   <div style={{
                     display: 'flex',
@@ -647,12 +657,12 @@ const Chats = () => {
 
                     {/* left: communication state */}
                     <CommunicationStateBadge
-                      state={getLatestCommunicationState(messagesByPO[po.po_num] || [])}
+                      state={getLatestCommunicationState(messagesByVendor[vendor.vendor_phone] || [])}
                     />
 
                     {/* right: SLA timer — only show if vendor hasn't replied yet */}
                     {(() => {
-                      const sla = computeResponseSLA(messagesByPO[po.po_num] || [], 0.5)
+                      const sla = computeResponseSLA(messagesByVendor[vendor.vendor_phone] || [], 0.5)
                       if (!sla) return null
 
                       const color = sla.color === 'red'
@@ -708,18 +718,25 @@ const Chats = () => {
 
         {/* Main Chat Area */}
         <section className="flex-1 flex flex-col bg-surface-container-lowest h-full overflow-hidden">
-          {selectedPo ? (
+          {selectedVendor ? (
             <>
               <header className="h-16 flex items-center justify-between px-8 border-b border-outline-variant/10 flex-shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="relative">
                     <div className="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center font-bold text-on-surface-variant text-lg">
-                      {selectedPo.vendor_name.charAt(0)}
+                      {selectedVendor.vendor_name.charAt(0)}
                     </div>
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-on-surface">{selectedPo.vendor_name} - Support</h2>
+                    <h2 className="text-sm font-bold text-on-surface">
+                      {selectedVendor.vendor_name}
+                      {searchParams.get('po') && (
+                        <span className="ml-2 text-[10px] font-medium text-on-surface-variant bg-surface-variant px-1.5 py-0.5 rounded">
+                          PO-{searchParams.get('po')}
+                        </span>
+                      )}
+                    </h2>
                     <div className="flex items-center gap-1.5">
                       <span className={`w-2 h-2 rounded-full ${threadState === 'human_controlled' ? 'bg-blue-500' : 'bg-primary'}`}></span>
                       <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
@@ -807,8 +824,8 @@ const Chats = () => {
                     </div>
                   )}
 
-                  {/* ── Compass opening message (always first) ── */}
-                  <CompassOpeningMessage po={selectedPo} />
+                  {/* ── Compass opening message (pinned top) ── */}
+                  <CompassOpeningMessage vendor={selectedVendor} />
 
                   <div className="flex justify-center">
                     <span className="px-4 py-1 bg-surface-container-low rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Today</span>
@@ -879,24 +896,32 @@ const Chats = () => {
 
         {/* Right Context Panel */}
         <section className="w-80 bg-surface-container-low flex flex-col border-l border-outline-variant/20 h-full overflow-y-auto">
-          {selectedPo && (
+          {selectedVendor && (
             <>
               <div className="p-6 border-b border-outline-variant/10">
-                <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">Case Overview</h3>
-                <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm space-y-4">
+                <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">Vendor Context</h3>
+                <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm space-y-5">
                   <div>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase">Purchase Order</p>
-                    <p className="text-sm font-bold text-on-surface">PO-{selectedPo.po_num}</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Entity Name</p>
+                    <p className="text-sm font-bold text-on-surface">{selectedVendor.vendor_name}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase">Vendor</p>
-                    <p className="text-sm font-bold text-on-surface underline underline-offset-4 decoration-primary/30">{selectedPo.vendor_name}</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Vendor Code</p>
+                    <p className="text-sm font-bold text-primary">{selectedVendor.vendor_code}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase">Delivery Date</p>
-                    <p className="text-sm font-medium text-on-surface">
-                      {formatDeliveryDate(selectedPo.delivery_date)}
-                    </p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Contact Details</p>
+                    <p className="text-sm font-medium text-on-surface">{selectedVendor.vendor_phone}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Associated Orders</p>
+                    <div className="flex flex-wrap gap-2">
+                       {selectedVendor.pos.map(p => (
+                         <span key={p.po_num} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg border border-slate-200">
+                           #{p.po_num}
+                         </span>
+                       ))}
+                    </div>
                   </div>
                 </div>
               </div>

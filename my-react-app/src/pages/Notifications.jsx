@@ -135,8 +135,8 @@ export default function Notifications() {
 
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-black text-slate-800">Alex Rivera</p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider">Ops Manager</p>
+              <p className="text-xs font-black text-slate-800">Ramesh Kumar</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider">Admin</p>
             </div>
             <img alt="User profile" className="w-9 h-9 rounded-full border-2 border-slate-200 shadow-sm"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8ov37m6Ru1jtLXavUm2Wv7-q8IqttbDcSU5OJzUCKT6ZmPdV8o10Gkm2bzBBlUkUAfR7nPEInOWhBPKK0JB-n56VPQC2sJvCZVr9a9eqzujzWSusoB7Pqo3Zl5PSfDCMpzoPbo0JZh5CHcjqc7lATQ1qKELXGJ7WeD5DB3SN3FaTJ4H9VBzP_Fvv51A3UPXtSYL_rtKoK2k8LRfiEklf60DY9c3Hul2Ue3yIjaHQmSa85wLfALExg-6xFvgM8lPDR6WQOIutN4I6d" />
