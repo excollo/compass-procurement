@@ -449,7 +449,7 @@ const EscalationDetail = () => {
             <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-2" />
             <div className="flex items-baseline gap-2">
               <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Escalations /</span>
-              <span className="text-lg font-black text-slate-900 dark:text-white font-mono">PO #{escalation.po_num}</span>
+              <span className="text-lg font-black text-slate-900 dark:text-white font-mono">PO {escalation.po_num}</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -722,7 +722,7 @@ const EscalationDetail = () => {
         {/* Sticky Bottom Bar */}
         <div className="fixed bottom-0 left-64 right-0 h-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 px-8 flex items-center justify-between z-50">
            <div className="flex items-center gap-4">
-              <span className="text-sm font-black text-slate-900 dark:text-white font-mono">#{escalation.po_num}</span>
+              <span className="text-sm font-black text-slate-900 dark:text-white font-mono">{escalation.po_num}</span>
               <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800" />
               <div className="flex flex-col">
                  <span className="text-xs font-bold">{escalation.vendor_name}</span>
