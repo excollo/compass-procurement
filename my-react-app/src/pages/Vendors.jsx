@@ -109,7 +109,7 @@ const Vendors = () => {
                                 {[
                                     { label: 'Partnerships', value: vendors.length, icon: 'hub', borderColor: 'var(--color-brand-primary)', iconBg: 'var(--color-brand-light)', iconColor: 'var(--color-brand-primary)', sub: 'Vendor records' },
                                     { label: 'Active Status', value: vendors.filter(v => v.status === 'Active').length || vendors.length, icon: 'check_circle', borderColor: 'var(--color-success)', iconBg: 'var(--color-success-bg)', iconColor: 'var(--color-success)', sub: 'Verified active' },
-                                    { label: 'MSMED Registered', value: vendors.filter(v => isMSMERegistered(v.msmed_status)).length || 0, icon: 'verified', borderColor: 'var(--color-info)', iconBg: 'var(--color-info-bg)', iconColor: 'var(--color-info)', sub: 'Registered entities' },
+                                    { label: 'Registered', value: vendors.filter(v => isMSMERegistered(v.msmed_status)).length || 0, icon: 'verified', borderColor: 'var(--color-info)', iconBg: 'var(--color-info-bg)', iconColor: 'var(--color-info)', sub: 'Registered entities' },
                                     { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || 0, icon: 'public', borderColor: 'var(--color-warning)', iconBg: 'var(--color-warning-bg)', iconColor: 'var(--color-warning)', sub: 'Unique locations' },
                                 ].map((stat, i) => (
                                     <div key={i} className="p-5 rounded-[var(--radius-card-lg)] flex flex-col justify-between h-[120px] transition-all cursor-default border-l-[4px] bg-white dark:bg-slate-900 shadow-sm hover:-translate-y-1"
@@ -152,15 +152,15 @@ const Vendors = () => {
                                         ) : (
                                             paginatedVendors.map((vendor, idx) => (
                                                 <tr key={idx} onClick={() => setSelectedVendor(vendor)} className={`hover:bg-slate-50 dark:hover:bg-slate-800/10 transition-all cursor-pointer border-l-4 ${selectedVendor?.vendor === vendor.vendor ? 'bg-primary/[0.03] border-primary' : 'border-transparent'}`}>
-                                                    <td className="px-8 py-6 text-sm font-black text-slate-900 dark:text-white tracking-tighter">#{vendor.vendor}</td>
+                                                    <td className="px-8 py-6 text-sm font-black text-slate-900 dark:text-white tracking-tighter">{vendor.vendor}</td>
                                                     <td className="px-8 py-6">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-extrabold text-xs">
+                                                            {/* <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-extrabold text-xs">
                                                                 {vendor.vendor_name1?.substring(0, 2).toUpperCase()}
-                                                            </div>
+                                                            </div> */}
                                                             <div className="flex flex-col">
                                                                 <p className="text-sm font-black text-slate-800 dark:text-white leading-tight">{vendor.vendor_name1}</p>
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Active Entity</span>
+                                                                {/* <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Active Entity</span> */}
                                                             </div>
                                                         </div>
                                                     </td>
@@ -197,12 +197,12 @@ const Vendors = () => {
                                         </div>
                                         <div>
                                             <h2 className="text-3xl font-black text-slate-900 dark:text-white font-headline leading-tight tracking-tighter uppercase">{selectedVendor.vendor_name1}</h2>
-                                            <p className="text-[10px] font-bold text-primary uppercase tracking-[0.4em] mt-1">MASTER ID: {selectedVendor.vendor}</p>
+                                            <p className="text-[10px] font-bold text-primary uppercase tracking-[0.4em] mt-1">VENDOR ID: {selectedVendor.vendor}</p>
                                         </div>
                                         <div className="flex gap-3">
                                             <span className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black rounded-xl border border-emerald-200/50 dark:border-emerald-800/50 uppercase tracking-tight">Active Partner</span>
                                             {isMSMERegistered(selectedVendor.msmed_status) && (
-                                                <span className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-black rounded-xl border border-blue-200/50 dark:border-blue-800/50 uppercase tracking-tight">MSMED REDIRECTION</span>
+                                                <span className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-black rounded-xl border border-blue-200/50 dark:border-blue-800/50 uppercase tracking-tight">MSMED REGISTERED</span>
                                             )}
                                         </div>
                                     </div>
@@ -215,7 +215,7 @@ const Vendors = () => {
                                             Logistic Parameters <div className="h-[1px] flex-1 bg-slate-100 dark:bg-slate-800"></div>
                                         </h3>
                                         <div className="space-y-6">
-                                            <div className="flex items-center gap-5">
+                                            {/* <div className="flex items-center gap-5">
                                                 <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-100 dark:border-slate-800 shadow-sm">
                                                     <span className="material-symbols-outlined text-xl">person</span>
                                                 </div>
@@ -223,7 +223,7 @@ const Vendors = () => {
                                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Stakeholder Lead</p>
                                                     <p className="text-sm font-black text-slate-900 dark:text-white mt-1">{selectedVendor.contact_person || 'Unassigned'}</p>
                                                 </div>
-                                            </div>
+                                            </div> */}
                                             <div className="flex items-center gap-5">
                                                 <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-100 dark:border-slate-800 shadow-sm">
                                                     <span className="material-symbols-outlined text-xl">call</span>
