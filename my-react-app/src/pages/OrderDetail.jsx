@@ -348,81 +348,61 @@ const OrderDetail = () => {
                         <div className="max-w-7xl mx-auto space-y-8 pb-20">
                         
                         {/* ━━ Info Cards Row ━━ */}
+                        {/* ━━ Info Cards Row ━━ */}
                         <div className="grid grid-cols-2 gap-8">
-                            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-start gap-6 relative overflow-hidden group">
-                                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 transition-colors group-hover:bg-primary group-hover:text-white">
+                            <div className="p-8 rounded-[var(--radius-card-lg)] flex items-start gap-6 relative overflow-hidden group transition-all border-l-[4px] bg-white dark:bg-slate-900 shadow-sm"
+                                 style={{ border: '1px solid var(--color-border-light)', borderLeftColor: 'var(--color-brand-primary)', borderLeftWidth: '4px', boxShadow: 'var(--shadow-card)' }}>
+                                <div className="p-4 rounded-2xl transition-colors" style={{ background: 'var(--color-brand-light)', color: 'var(--color-brand-primary)' }}>
                                     <span className="material-symbols-outlined text-3xl">corporate_fare</span>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assigned Vendor</p>
-                                    <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">{header.vendor_name || 'Unmapped Supplier'}</h4>
-                                    <p className="text-xs font-bold text-slate-400">Vendor Code: {header.vendor_code || 'N/A'}</p>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Assigned Vendor</p>
+                                    <h4 className="text-[22px] font-bold text-slate-900 dark:text-white tracking-tight leading-tight">{header.vendor_name || 'Unmapped Supplier'}</h4>
+                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">ID: {header.vendor_code || 'N/A'}</p>
                                 </div>
-                                <div className="absolute bottom-6 right-8">
-                                    <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest">#{header.vendor_code}</span>
+                                <div className="absolute top-8 right-8">
+                                    <span className="px-3 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-100 dark:border-slate-700">ENTITY</span>
                                 </div>
                             </div>
 
-                            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-start gap-6 relative overflow-hidden group">
-                                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 transition-colors group-hover:bg-blue-500 group-hover:text-white">
+                            <div className="p-8 rounded-[var(--radius-card-lg)] flex items-start gap-6 relative overflow-hidden group transition-all border-l-[4px] bg-white dark:bg-slate-900 shadow-sm"
+                                 style={{ border: '1px solid var(--color-border-light)', borderLeftColor: 'var(--color-info)', borderLeftWidth: '4px', boxShadow: 'var(--shadow-card)' }}>
+                                <div className="p-4 rounded-2xl transition-colors" style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
                                     <span className="material-symbols-outlined text-3xl">location_on</span>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Delivery Site</p>
-                                    <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">{header.unit_description || 'Unidentified Hub'}</h4>
-                                    <p className="text-xs font-bold text-slate-400">Unit ID: {header.unit || 'N/A'}</p>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Delivery Site</p>
+                                    <h4 className="text-[22px] font-bold text-slate-900 dark:text-white tracking-tight leading-tight">{header.unit_description || 'Unidentified Hub'}</h4>
+                                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Unit: {header.unit || 'N/A'}</p>
                                 </div>
-                                <div className="absolute bottom-6 right-8 text-right">
-                                     <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest underline decoration-2 underline-offset-4">{formatDate(header.delivery_date)}</p>
+                                <div className="absolute top-8 right-8">
+                                    <span className="px-3 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-100 dark:border-slate-700">HUB</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* ━━ KPI Cards Row ━━ */}
                         <div className="grid grid-cols-4 gap-6">
-                            {/* Card 1: Total Lines */}
-                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm flex flex-col justify-center items-center">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Lines</p>
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{totalLines}</h3>
-                                <div className="text-[10px] font-bold text-slate-400">Line items in this PO</div>
-                            </div>
-                            
-                            {/* Card 2: Delivery Date */}
-                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm flex flex-col justify-center items-center">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Delivery Date</p>
-                                <h3 className={`text-2xl font-black leading-none py-2 ${daysDiff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                    {formatDate(header?.delivery_date)}
-                                </h3>
-                            </div>
-
-                            {/* Card 3: Pending Lines */}
-                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm flex flex-col justify-center items-center">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Pending Lines</p>
-                                {pendingLinesCount > 0 ? (
-                                    <>
-                                        <h3 className="text-2xl font-black text-red-500 mb-2">{pendingLinesCount}</h3>
-                                        <div className="px-3 py-1 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-100 dark:border-red-800 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                                            Awaiting fulfillment
+                            {[
+                                { label: 'Total Lines', value: totalLines, sub: 'Line items in PO', icon: 'list_alt', color: 'var(--color-neutral)', bg: 'var(--color-neutral-bg)' },
+                                { label: 'Delivery Date', value: formatDate(header?.delivery_date), sub: daysDiff < 0 ? 'Past deadline' : 'Scheduled', icon: 'schedule', color: daysDiff < 0 ? 'var(--color-danger)' : 'var(--color-success)', bg: daysDiff < 0 ? 'var(--color-danger-bg)' : 'var(--color-success-bg)' },
+                                { label: 'Pending Lines', value: pendingLinesCount, sub: pendingLinesCount > 0 ? 'Awaiting fulfillment' : 'All fulfilled', icon: 'pending_actions', color: pendingLinesCount > 0 ? 'var(--color-warning)' : 'var(--color-success)', bg: pendingLinesCount > 0 ? 'var(--color-warning-bg)' : 'var(--color-success-bg)' },
+                                { label: 'Fulfillment Rate', value: `${fulfillmentRate}%`, sub: 'Items delivered', icon: 'task_alt', color: fulfillmentRate >= 100 ? 'var(--color-success)' : 'var(--color-warning)', bg: fulfillmentRate >= 100 ? 'var(--color-success-bg)' : 'var(--color-warning-bg)' }
+                            ].map((stat, i) => (
+                                <div key={i} className="p-6 rounded-[var(--radius-card-lg)] bg-white dark:bg-slate-900 border-l-[4px] shadow-sm flex flex-col justify-between h-[140px] transition-all"
+                                     style={{ border: '1px solid var(--color-border-light)', borderLeftColor: stat.color, borderLeftWidth: '4px', boxShadow: 'var(--shadow-card)' }}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: stat.bg, color: stat.color }}>
+                                            <span className="material-symbols-outlined text-lg">{stat.icon}</span>
                                         </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <h3 className="text-2xl font-black text-emerald-500 mb-2">0</h3>
-                                        <div className="px-3 py-1 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                                            All fulfilled
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            {/* Card 4: Fulfillment Rate */}
-                            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-sm flex flex-col justify-center w-full">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Fulfillment Rate</p>
-                                <h3 className={`text-2xl font-black mb-3 text-center ${getFulfillmentRateColor(fulfillmentRate)}`}>{fulfillmentRate}%</h3>
-                                <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-2">
-                                    <div className={`h-full rounded-full ${fulfillmentRate >= 100 ? 'bg-emerald-500' : fulfillmentRate >= 90 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${fulfillmentRate}%` }}></div>
+                                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{stat.label}</span>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-[24px] font-bold text-slate-900 dark:text-white leading-none mb-1">{stat.value}</h3>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: stat.color }}>{stat.sub}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            ))}
                         </div>
 
                         {/* ━━ Line Items Table ━━ */}
@@ -702,7 +682,7 @@ const OrderDetail = () => {
                                         <span className="material-symbols-outlined text-red-500 text-2xl">error</span>
                                     </div>
                                     <div className="space-y-2">
-                                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Analysis Failed</h4>
+                                        
                                         <p className="text-xs font-medium text-slate-400 leading-relaxed max-w-[200px] mx-auto">{summaryError}</p>
                                     </div>
                                     <button 

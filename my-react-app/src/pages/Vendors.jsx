@@ -107,23 +107,24 @@ const Vendors = () => {
                             {/* Stats */}
                             <div className="grid grid-cols-4 gap-6 mb-8">
                                 {[
-                                    { label: 'Total Partnerships', value: vendors.length, icon: 'hub', colorClass: 'text-blue-500', sub: 'Vendor records' },
-                                    { label: 'Active Status', value: vendors.filter(v => v.status === 'Active').length || vendors.length, icon: 'check_circle', colorClass: 'text-emerald-500', sub: 'Verified active' },
-                                    { label: 'MSMED Registered', value: vendors.filter(v => isMSMERegistered(v.msmed_status)).length || 0, icon: 'verified', colorClass: 'text-indigo-500', sub: 'Registered entities' },
-                                    { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || 0, icon: 'public', colorClass: 'text-amber-500', sub: 'Unique locations' },
+                                    { label: 'Partnerships', value: vendors.length, icon: 'hub', borderColor: 'var(--color-brand-primary)', iconBg: 'var(--color-brand-light)', iconColor: 'var(--color-brand-primary)', sub: 'Vendor records' },
+                                    { label: 'Active Status', value: vendors.filter(v => v.status === 'Active').length || vendors.length, icon: 'check_circle', borderColor: 'var(--color-success)', iconBg: 'var(--color-success-bg)', iconColor: 'var(--color-success)', sub: 'Verified active' },
+                                    { label: 'MSMED Registered', value: vendors.filter(v => isMSMERegistered(v.msmed_status)).length || 0, icon: 'verified', borderColor: 'var(--color-info)', iconBg: 'var(--color-info-bg)', iconColor: 'var(--color-info)', sub: 'Registered entities' },
+                                    { label: 'Cities Covered', value: [...new Set(vendors.map(v => v.city))].length || 0, icon: 'public', borderColor: 'var(--color-warning)', iconBg: 'var(--color-warning-bg)', iconColor: 'var(--color-warning)', sub: 'Unique locations' },
                                 ].map((stat, i) => (
-                                    <div key={i} className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px] hover:-translate-y-0.5 hover:shadow-md transition-all cursor-default">
+                                    <div key={i} className="p-5 rounded-[var(--radius-card-lg)] flex flex-col justify-between h-[120px] transition-all cursor-default border-l-[4px] bg-white dark:bg-slate-900 shadow-sm hover:-translate-y-1"
+                                         style={{ border: '1px solid var(--color-border-light)', borderLeftColor: stat.borderColor, borderLeftWidth: '4px', boxShadow: 'var(--shadow-card)' }}>
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
-                                                <span className="material-symbols-outlined text-[18px] text-white">{stat.icon}</span>
+                                            <div className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: stat.iconBg }}>
+                                                <span className="material-symbols-outlined text-[18px]" style={{ color: stat.iconColor }}>{stat.icon}</span>
                                             </div>
-                                            <span className="text-sm font-semibold text-slate-500">{stat.label}</span>
+                                            <span className="text-[12px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{stat.label}</span>
                                         </div>
                                         <div>
-                                            <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">
+                                            <h3 className="text-[28px] font-semibold font-headline leading-none text-slate-900 dark:text-white">
                                                 {loading ? <span className="inline-block w-10 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" /> : stat.value}
                                             </h3>
-                                            <p className="text-[13px] text-slate-500 mt-1">{stat.sub}</p>
+                                            <p className="text-[11px] font-medium mt-1 text-slate-400 uppercase tracking-widest">{stat.sub}</p>
                                         </div>
                                     </div>
                                 ))}

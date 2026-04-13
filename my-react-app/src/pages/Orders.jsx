@@ -397,57 +397,36 @@ const Orders = () => {
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-4 gap-4 mb-8">
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px]">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
-                    <span className="material-symbols-outlined text-[18px] text-white">receipt_long</span>
+            <div className="grid grid-cols-4 gap-5 mb-8">
+              {[
+                { label: 'Total Open POs', value: stats.total, icon: 'receipt_long', sub: 'Active inventory', borderColor: 'var(--color-brand-primary)', iconBg: 'var(--color-brand-light)', iconColor: 'var(--color-brand-primary)' },
+                { label: 'Due Within 3 Days', value: stats.dueWithin3Days, icon: 'event', sub: 'Urgent priority', borderColor: 'var(--color-info)', iconBg: 'var(--color-info-bg)', iconColor: 'var(--color-info)' },
+                { label: 'At-Risk POs', value: stats.atRisk, icon: 'warning', sub: 'Exceptions flag', borderColor: 'var(--color-warning)', iconBg: 'var(--color-warning-bg)', iconColor: 'var(--color-warning)', onClick: () => toggleCommState('at_risk'), active: filterCommStates.includes('at_risk') },
+                { label: 'Awaiting Response', value: stats.awaitingResponse, icon: 'forum', sub: 'Vendor feedback', borderColor: 'var(--color-neutral)', iconBg: 'var(--color-neutral-bg)', iconColor: 'var(--color-neutral)' },
+              ].map((stat, i) => (
+                <div 
+                  key={i}
+                  onClick={stat.onClick}
+                  className={`p-5 rounded-[var(--radius-card-lg)] flex flex-col justify-between h-[120px] transition-all border-l-[4px] bg-white dark:bg-slate-900 ${stat.onClick ? 'cursor-pointer hover:-translate-y-1' : 'cursor-default'}`}
+                  style={{
+                    border: '1px solid var(--color-border-light)',
+                    borderLeftWidth: '4px',
+                    borderLeftColor: stat.borderColor,
+                    boxShadow: stat.active ? '0 0 0 2px var(--color-brand-primary)' : 'var(--shadow-card)'
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: stat.iconBg }}>
+                      <span className="material-symbols-outlined text-[18px]" style={{ color: stat.iconColor }}>{stat.icon}</span>
+                    </div>
+                    <span className="text-[12px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{stat.label}</span>
                   </div>
-                  <span className="text-sm font-semibold text-slate-500">Total Open POs</span>
-                </div>
-                <div>
-                  <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">{stats.total}</h3>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px]">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
-                    <span className="material-symbols-outlined text-[18px] text-white">event</span>
+                  <div>
+                    <h3 className="text-[28px] font-semibold font-headline leading-none text-slate-900 dark:text-white">{stat.value}</h3>
+                    <p className="text-[11px] font-medium mt-1 text-slate-400 uppercase tracking-widest">{stat.sub}</p>
                   </div>
-                  <span className="text-sm font-semibold text-slate-500">Due Within 3 Days</span>
                 </div>
-                <div>
-                  <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">{stats.dueWithin3Days}</h3>
-                </div>
-              </div>
-
-              <div 
-                onClick={() => toggleCommState('at_risk')}
-                className={`bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-pointer border flex flex-col justify-between h-[120px] ${filterCommStates.includes('at_risk') ? 'border-amber-500 ring-2 ring-amber-500/10' : 'border-slate-100 dark:border-slate-800'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
-                    <span className="material-symbols-outlined text-[18px] text-white">warning</span>
-                  </div>
-                  <span className="text-sm font-semibold text-slate-500">At-Risk POs</span>
-                </div>
-                <div>
-                  <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">{stats.atRisk}</h3>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px]">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
-                    <span className="material-symbols-outlined text-[18px] text-white">forum</span>
-                  </div>
-                  <span className="text-sm font-semibold text-slate-500">Awaiting Response</span>
-                </div>
-                <div>
-                  <h3 className="text-[32px] font-black leading-none text-slate-900 dark:text-white">{stats.awaitingResponse}</h3>
-                </div>
-              </div>
+              ))}
             </div>
 
             {/* Filters */}
@@ -489,15 +468,15 @@ const Orders = () => {
                 )}
               </div>
               <div className="space-y-1.5 col-span-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-label">Timeline Start</label>
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-label">Delivery Date From</label>
                 <input className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-3 px-4 focus:ring-0 h-[40px]" type="date" value={filterDateFrom} onChange={(e) => {setFilterDateFrom(e.target.value); setCurrentPage(1);}} />
               </div>
               <div className="space-y-1.5 col-span-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-label">Timeline End</label>
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-label">Delivery Date To</label>
                 <input className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs py-3 px-4 focus:ring-0 h-[40px]" type="date" value={filterDateTo} onChange={(e) => {setFilterDateTo(e.target.value); setCurrentPage(1);}} />
               </div>
               <div className="flex items-end col-span-2">
-                <button onClick={() => {setFilterVendor('All Vendors'); setFilterDateFrom(''); setFilterDateTo(''); setSearchTerm(''); setFilterCommStates([]); setCurrentPage(1); setCommDropdownOpen(false);}} className="w-full h-[40px] bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all">Reset Analysis Filters</button>
+                <button onClick={() => {setFilterVendor('All Vendors'); setFilterDateFrom(''); setFilterDateTo(''); setSearchTerm(''); setFilterCommStates([]); setCurrentPage(1); setCommDropdownOpen(false);}} className="w-full h-[40px] bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all">Reset Filters</button>
               </div>
             </div>
 
