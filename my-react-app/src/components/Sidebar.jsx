@@ -18,12 +18,12 @@ const NavItem = ({ to, icon, label, badge }) => {
     </>
   );
 
-  const baseClasses = "flex justify-between items-center px-4 py-2 rounded-[0.75rem] transition-colors text-[13px] font-medium relative overflow-hidden group ";
+  const baseClasses = "flex justify-between items-center px-4 py-2 rounded-[0.75rem] transition-colors text-[13px] font-medium relative group ";
 
   if (to) {
     return (
-      <NavLink 
-        to={to} 
+      <NavLink
+        to={to}
         className={({ isActive }) => baseClasses + (isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900')}
       >
         {({ isActive }) => innerContent(isActive)}
@@ -80,16 +80,7 @@ const Sidebar = () => {
   return (
     <aside className="hidden md:flex flex-col h-screen w-64 bg-white border-r border-slate-100 z-50 flex-shrink-0">
 
-      {/* Search & Ask Agent */}
-      <div className="p-4 space-y-3">
-
-        <button className="w-full flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2.5 rounded-xl transition-colors text-[13px] font-semibold">
-          <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-          Ask Agent
-        </button>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-2 space-y-6 pb-6 no-scrollbar">
+      <nav className="flex-1 overflow-y-auto px-2 pt-6 space-y-6 pb-6 no-scrollbar">
         {/* COMMAND */}
         <div>
           <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-4 mb-2">Command</h4>
