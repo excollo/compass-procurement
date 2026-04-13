@@ -76,6 +76,40 @@ const SlaIndicator = ({ elapsed, windowHours, actedAt }) => {
   );
 };
 
+const MetricCard = ({ icon, label, value, sub, borderColor, iconBg, iconColor }) => (
+  <div
+    className="p-5 rounded-[var(--radius-card-lg)] flex flex-col justify-between h-[120px] transition-all cursor-default"
+    style={{
+      background: 'var(--color-surface)',
+      boxShadow: 'var(--shadow-card)',
+      border: '1px solid var(--color-border-light)',
+      borderLeftWidth: '4px',
+      borderLeftColor: borderColor || 'var(--color-border)',
+    }}
+  >
+    <div className="flex items-center gap-3">
+      <div
+        className="w-8 h-8 rounded-[10px] flex items-center justify-center"
+        style={{ background: iconBg || 'var(--color-neutral-bg)' }}
+      >
+        <span
+          className="material-symbols-outlined text-[18px]"
+          style={{ color: iconColor || 'var(--color-neutral)' }}
+        >{icon}</span>
+      </div>
+      <span className="text-[12px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>{label}</span>
+    </div>
+    <div>
+      <div className="flex items-baseline">
+        <h3 className="text-[28px] font-semibold leading-none" style={{ color: 'var(--color-text-primary)' }}>
+          {value === null ? '-' : value}
+        </h3>
+      </div>
+      <p className="text-[12px] font-medium mt-1" style={{ color: 'var(--color-text-secondary)' }}>{sub}</p>
+    </div>
+  </div>
+);
+
 const Escalations = () => {
   const navigate = useNavigate();
   const [escalations, setEscalations] = useState([]);
@@ -273,30 +307,35 @@ const Escalations = () => {
         <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
           <div className="max-w-[1600px] mx-auto w-full space-y-8">
             <div>
-              <h2 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">
+              <h2 className="text-[28px] font-bold font-headline tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>
                 Escalations
               </h2>
-              <p className="text-slate-500 font-medium mt-2">Manage critical exceptions and SLA-breached procurement tasks.</p>
+              <p className="font-medium mt-2 text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
+                Manage critical exceptions and SLA-breached procurement tasks.
+              </p>
             </div>
 
             {/* KPI Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              {[
-                { label: 'Total Escalations', value: stats.totalOpen, color: 'text-slate-900 dark:text-white' },
-                { label: 'Vendor SLA Breached', value: stats.vendorBreached, color: 'text-red-500' },
-                { label: 'Operator SLA Breached', value: stats.operatorBreached, color: 'text-amber-500' },
-                { label: 'Critical Priority', value: stats.critical, color: 'text-red-600' },
-                { label: 'Avg Operator Response', value: stats.avgResponse, color: 'text-blue-500' }
-              ].map((kpi, i) => (
-                <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{kpi.label}</p>
-                  <h3 className={`text-3xl font-black ${kpi.color}`}>{kpi.value}</h3>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+              <MetricCard label="Total Escalations" value={stats.totalOpen} icon="list_alt" sub="All Open"
+                borderColor="var(--color-brand-primary)" iconBg="var(--color-brand-light)" iconColor="var(--color-brand-primary)" />
+              <MetricCard label="Vendor Breached" value={stats.vendorBreached} icon="warning" sub="SLA Breached"
+                borderColor="var(--color-danger)" iconBg="var(--color-danger-bg)" iconColor="var(--color-danger)" />
+              <MetricCard label="Operator Breached" value={stats.operatorBreached} icon="schedule" sub="SLA Breached"
+                borderColor="var(--color-warning)" iconBg="var(--color-warning-bg)" iconColor="var(--color-warning)" />
+              <MetricCard label="Critical Priority" value={stats.critical} icon="emergency" sub="Urgent"
+                borderColor="var(--color-danger)" iconBg="var(--color-danger-bg)" iconColor="var(--color-danger)" />
+              <MetricCard label="Avg Operator Response" value={stats.avgResponse} icon="timer" sub="Action Time"
+                borderColor="var(--color-success)" iconBg="var(--color-success-bg)" iconColor="var(--color-success)" />
             </div>
 
             {/* Filter Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm lg:items-end">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 p-6 rounded-[var(--radius-card-lg)] lg:items-end"
+                 style={{
+                   background: 'var(--color-surface)',
+                   boxShadow: 'var(--shadow-card)',
+                   border: '1px solid var(--color-border-light)'
+                 }}>
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Search</label>
                 <div className="relative">
@@ -364,19 +403,24 @@ const Escalations = () => {
             </div>
 
             {/* Table */}
-            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="rounded-[var(--radius-card-lg)] overflow-hidden h-full flex flex-col"
+                 style={{
+                   background: 'var(--color-surface)',
+                   boxShadow: 'var(--shadow-card)',
+                   border: '1px solid var(--color-border-light)'
+                 }}>
+              <div className="overflow-x-auto flex-1">
                 <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-                      <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">PO Number</th>
-                      <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Vendor</th>
-                      <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Delivery</th>
-                      <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Priority</th>
-                      <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Reason</th>
-                      <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Vendor SLA</th>
-                      <th className="text-left px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Operator SLA</th>
-                      <th className="text-right px-6 py-5 text-[9px] font-black uppercase tracking-widest text-slate-400">Action</th>
+                  <thead style={{ background: 'var(--color-surface-muted)', borderBottom: '1px solid var(--color-border-light)' }}>
+                    <tr>
+                      <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>PO Number</th>
+                      <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Vendor</th>
+                      <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Delivery</th>
+                      <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Priority</th>
+                      <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Reason</th>
+                      <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Vendor SLA</th>
+                      <th className="text-left px-6 py-4 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Operator SLA</th>
+                      <th className="text-right px-6 py-4 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
