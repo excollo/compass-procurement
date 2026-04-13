@@ -708,7 +708,7 @@ const EscalationDetail = () => {
                        </div>
                        <div className="flex justify-between items-center py-3">
                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned To</span>
-                          <span className={`text-xs font-bold ${!escalation.spoc_name ? 'text-amber-500 italic' : ''}`}>{escalation.spoc_name || 'Unassigned'}</span>
+                          <span className={`text-xs font-bold ${!escalation.spoc_name ? 'text-blue-500 italic' : ''}`}>{escalation.spoc_name || 'Priya Sharma'}</span>
                        </div>
                     </div>
                   </div>
