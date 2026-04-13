@@ -336,9 +336,18 @@ const OrderDetail = () => {
                             <div className="flex items-center gap-3">
                             </div>
                         </div>
-                        <div className="text-right">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Document Date: <span className="text-slate-900 dark:text-white ml-2">{formatDate(header.po_date)}</span></p>
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Delivery Sync: <span className="text-emerald-500 ml-2">{formatDate(header.delivery_date)}</span></p>
+                        <div className="text-right flex items-center gap-6">
+                             <div>
+                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Document Date: <span className="text-slate-900 dark:text-white ml-2">{formatDate(header.po_date)}</span></p>
+                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Delivery Sync: <span className="text-emerald-500 ml-2">{formatDate(header.delivery_date)}</span></p>
+                             </div>
+                             <div className="h-10 w-[1px] bg-slate-100 dark:bg-slate-800 mx-2" />
+                             <div className="text-right hidden sm:block">
+                               <p className="text-xs font-black text-slate-800 dark:text-white">Ramesh Kumar</p>
+                               <p className="text-[10px] text-slate-400 uppercase tracking-wider">Admin</p>
+                             </div>
+                             <img alt="User profile" className="w-9 h-9 rounded-full border-2 border-slate-200 shadow-sm"
+                               src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8ov37m6Ru1jtLXavUm2Wv7-q8IqttbDcSU5OJzUCKT6ZmPdV8o10Gkm2bzBBlUkUAfR7nPEInOWhBPKK0JB-n56VPQC2sJvCZVr9a9eqzujzWSusoB7Pqo3Zl5PSfDCMpzoPbo0JZh5CHcjqc7lATQ1qKELXGJ7WeD5DB3SN3FaTJ4H9VBzP_Fvv51A3UPXtSYL_rtKoK2k8LRfiEklf60DY9c3Hul2Ue3yIjaHQmSa85wLfALExg-6xFvgM8lPDR6WQOIutN4I6d" />
                         </div>
                     </div>
                 </header>
