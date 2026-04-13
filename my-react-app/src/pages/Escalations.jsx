@@ -417,7 +417,7 @@ const Escalations = () => {
                           >
                             <td className="px-6 py-5">
                               <span className="text-sm font-black text-blue-600 dark:text-blue-400 font-mono tracking-tighter hover:underline">
-                                #{item.po_num}
+                                {item.po_num}
                               </span>
                             </td>
                             <td className="px-6 py-5">
