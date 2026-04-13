@@ -216,6 +216,15 @@ const EscalationDetail = () => {
     }
 
     if (reason === 'delivery_delay') {
+      const origDateStr = escalation.original_delivery_date || escalation.delivery_date;
+      const delayDays = escalation.delay_days || 2;
+      let revisedDateStr = escalation.vendor_revised_eta;
+      if (!revisedDateStr && origDateStr) {
+        const d = new Date(origDateStr);
+        d.setDate(d.getDate() + delayDays);
+        revisedDateStr = d.toISOString();
+      }
+
       return (
         <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-50 dark:border-slate-800 flex items-center gap-3">
@@ -225,17 +234,17 @@ const EscalationDetail = () => {
           <div className="p-8 flex items-center justify-around">
              <div className="text-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Original Date</p>
-                <p className="text-lg font-bold text-slate-900 dark:text-white">{formatDate(escalation.original_delivery_date)}</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white">{formatDate(origDateStr)}</p>
              </div>
              <span className="material-symbols-outlined text-3xl text-slate-200">arrow_forward</span>
              <div className="text-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Revised ETA</p>
-                <p className="text-lg font-bold text-amber-500">{formatDate(escalation.vendor_revised_eta)}</p>
+                <p className="text-lg font-bold text-amber-500">{formatDate(revisedDateStr)}</p>
              </div>
              <div className="h-12 w-[1px] bg-slate-100 dark:bg-slate-800" />
              <div className="text-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Days Delayed</p>
-                <p className="text-2xl font-black text-red-500">{escalation.delay_days} <span className="text-xs">days</span></p>
+                <p className="text-2xl font-black text-red-500">{delayDays} <span className="text-xs">days</span></p>
              </div>
           </div>
         </div>
