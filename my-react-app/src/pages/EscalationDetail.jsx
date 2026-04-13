@@ -37,6 +37,16 @@ const formatElapsed = (ms) => {
   return `${hours}h ${minutes}m`;
 };
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  const DD = String(d.getDate()).padStart(2, '0');
+  const MM = String(d.getMonth() + 1).padStart(2, '0');
+  const YYYY = d.getFullYear();
+  return `${DD}/${MM}/${YYYY}`;
+};
+
 const EscalationDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -215,12 +225,12 @@ const EscalationDetail = () => {
           <div className="p-8 flex items-center justify-around">
              <div className="text-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Original Date</p>
-                <p className="text-lg font-bold text-slate-900 dark:text-white">{new Date(escalation.original_delivery_date).toLocaleDateString()}</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white">{formatDate(escalation.original_delivery_date)}</p>
              </div>
              <span className="material-symbols-outlined text-3xl text-slate-200">arrow_forward</span>
              <div className="text-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Revised ETA</p>
-                <p className="text-lg font-bold text-amber-500">{new Date(escalation.vendor_revised_eta).toLocaleDateString()}</p>
+                <p className="text-lg font-bold text-amber-500">{formatDate(escalation.vendor_revised_eta)}</p>
              </div>
              <div className="h-12 w-[1px] bg-slate-100 dark:bg-slate-800" />
              <div className="text-center">
@@ -279,7 +289,7 @@ const EscalationDetail = () => {
                </div>
                <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Invoice Due Date</p>
-                  <p className="text-lg font-bold">{new Date(escalation.invoice_due_date).toLocaleDateString()}</p>
+                  <p className="text-lg font-bold">{formatDate(escalation.invoice_due_date)}</p>
                   <p className="text-[10px] font-bold text-red-500 mt-1 uppercase tracking-widest">
                     {Math.max(0, Math.floor((now - new Date(escalation.invoice_due_date)) / 86400000))} Days Overdue
                   </p>
@@ -494,7 +504,7 @@ const EscalationDetail = () => {
                         </div>
                         <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Doc Date</p>
-                           <p className="text-xs font-bold">{new Date(escalation.document_date).toLocaleDateString()}</p>
+                           <p className="text-xs font-bold">{formatDate(escalation.document_date)}</p>
                         </div>
                      </div>
                      <div className="space-y-2">
@@ -716,7 +726,7 @@ const EscalationDetail = () => {
               <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800" />
               <div className="flex flex-col">
                  <span className="text-xs font-bold">{escalation.vendor_name}</span>
-                 <span className="text-[10px] font-medium text-slate-400">Delivery: {new Date(escalation.delivery_date).toLocaleDateString()}</span>
+                 <span className="text-[10px] font-medium text-slate-400">Delivery: {formatDate(escalation.delivery_date)}</span>
               </div>
            </div>
            <div className="flex items-center gap-3">

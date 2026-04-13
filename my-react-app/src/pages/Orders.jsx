@@ -12,7 +12,7 @@ const formatDate = (dateStr) => {
   const DD = String(d.getDate()).padStart(2, '0');
   const MM = String(d.getMonth() + 1).padStart(2, '0');
   const YYYY = d.getFullYear();
-  return `${DD} ${MM} ${YYYY}`;
+  return `${DD}/${MM}/${YYYY}`;
 };
 
 const convertToInputDate = (dateStr) => {
@@ -308,7 +308,7 @@ const Orders = () => {
     const status = po.status?.toLowerCase() || '';
     const commState = po.communication_state?.toLowerCase() || '';
     
-    if (status === 'at_risk' || status === 'at-risk' || commState === 'exception_detected') {
+    if (status === 'at_risk' || status === 'at-risk' || commState === 'at_risk' || commState === 'exception_detected') {
       acc.atRisk++;
     }
     
@@ -422,7 +422,10 @@ const Orders = () => {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-[120px]">
+              <div 
+                onClick={() => toggleCommState('at_risk')}
+                className={`bg-white dark:bg-slate-900 p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-pointer border flex flex-col justify-between h-[120px] ${filterCommStates.includes('at_risk') ? 'border-amber-500 ring-2 ring-amber-500/10' : 'border-slate-100 dark:border-slate-800'}`}
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
                     <span className="material-symbols-outlined text-[18px] text-white">warning</span>
@@ -563,26 +566,27 @@ const Orders = () => {
                                   className="text-sm font-black text-slate-900 dark:text-white tracking-widest hover:text-primary transition-colors underline decoration-2 underline-offset-4 decoration-primary/20 hover:decoration-primary"
                                   onClick={(e) => e.stopPropagation()}
                                >
-                                   #{po.po_num}
+                                   {po.po_num}
                                </Link>
                           </td>
                           <td className="px-6 py-4" onClick={() => navigate('/orders/' + po.po_num)}>
                             <div className="flex flex-col">
                               <span className="text-xs font-black text-slate-700 dark:text-slate-200 tracking-tight">{po.vendor_name}</span>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Verified Partner</span>
                             </div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="relative flex items-center gap-2 group/date max-w-fit cursor-pointer">
+                              <span className={`text-xs font-black italic ${etdColor} z-10 group-hover/date:underline`}>
+                                {formatDate(displayDate)}
+                              </span>
                               <input 
                                 type="date"
                                 value={convertToInputDate(displayDate)}
                                 onChange={(e) => handleLocalChange(po.po_num, 'delivery_date', e.target.value)}
                                 onClick={(e) => e.stopPropagation()}
-                                className={`bg-transparent border-none p-0 text-xs italic cursor-pointer focus:ring-0 z-10 ${etdColor} group-hover/date:underline [color-scheme:light] appearance-none`}
-                                style={{ WebkitAppearance: 'none' }}
+                                className="absolute inset-0 opacity-0 cursor-pointer z-20"
                               />
-                              <span className="material-symbols-outlined text-sm text-slate-300 group-hover/date:text-primary transition-colors" onClick={(e) => {
+                              <span className="material-symbols-outlined text-sm text-slate-300 group-hover/date:text-primary transition-colors cursor-pointer" onClick={(e) => {
                                 e.stopPropagation();
                                 const input = e.currentTarget.parentElement.querySelector('input');
                                 if (input.showPicker) input.showPicker();

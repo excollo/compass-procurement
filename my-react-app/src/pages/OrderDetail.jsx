@@ -10,7 +10,7 @@ const formatDate = (dateStr) => {
   const DD = String(d.getDate()).padStart(2, '0');
   const MM = String(d.getMonth() + 1).padStart(2, '0');
   const YYYY = d.getFullYear();
-  return `${DD} ${MM} ${YYYY}`;
+  return `${DD}/${MM}/${YYYY}`;
 };
 
 const OrderDetail = () => {
@@ -67,10 +67,42 @@ const OrderDetail = () => {
         high:   { label: 'High Risk',   dot: 'bg-red-500',     text: 'text-red-600'    },
     };
 
+    useEffect(() => {
+        if (poNum) {
+            handleGenerateSummary();
+        }
+    }, [poNum]);
+
+    // ── AI Summary Helpers ──────────────────────────────────────────
+    const renderInlineBold = (text) => {
+        if (!text) return null;
+        const parts = text.split(/\*\*(.+?)\*\*/g);
+        return parts.map((part, i) =>
+            i % 2 === 1 ? (
+                <strong key={i} className="font-black text-slate-900 dark:text-white">
+                    {part}
+                </strong>
+            ) : (
+                <span key={i}>{part}</span>
+            )
+        );
+    };
+
+    const parseSummaryItems = (raw) => {
+        if (!raw) return null;
+        // Split on numbered items: "1. **Key**..."
+        const items = raw.split(/(?=\d+\.\s+\*\*)/g).filter(Boolean);
+        if (items.length <= 1) return null;
+        return items.map(item => {
+            const match = item.match(/^(\d+)\.\s+\*\*(.+?)\*\*\s*[:\-]?\s*(.*)/s);
+            if (!match) return { num: '', label: '', body: item };
+            return { num: match[1], label: match[2], body: match[3] };
+        });
+    };
+
     const handleGenerateSummary = async () => {
         setSummaryError(null);
         setGenerating(true);
-        setShowPopup(true);
         setSummary(null);
         try {
             const agentUrl = import.meta.env.VITE_AGENT_URL || 'http://localhost:8000';
@@ -87,7 +119,6 @@ const OrderDetail = () => {
         } catch (err) {
             console.error('AI Summary error:', err);
             setSummaryError(err.message || 'Failed to generate summary.');
-            setShowPopup(false);
         } finally {
             setGenerating(false);
         }
@@ -303,54 +334,6 @@ const OrderDetail = () => {
                             <h1 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">PO #{poNum}</h1>
                             
                             <div className="flex items-center gap-3">
-                                <select 
-                                    value={headerStatus}
-                                    onChange={(e) => setHeaderStatus(e.target.value)}
-                                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer ${
-                                        headerStatus === 'Open' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
-                                        headerStatus === 'Closed' ? 'bg-slate-100 text-slate-500 border-slate-200' :
-                                        headerStatus === 'Cancelled' ? 'bg-red-50 text-red-600 border-red-100' :
-                                        'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                    }`}
-                                >
-                                    <option value="Open">Open</option>
-                                    <option value="Confirmed">Confirmed</option>
-                                    <option value="Partial">Partial</option>
-                                    <option value="Fulfilled">Fulfilled</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-
-                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-3 py-1 rounded-full">
-                                    <span className="material-symbols-outlined text-xs text-slate-400">calendar_today</span>
-                                    <input 
-                                        type="date"
-                                        value={headerDeliveryDate ? headerDeliveryDate.split('T')[0] : ''}
-                                        onChange={(e) => setHeaderDeliveryDate(e.target.value)}
-                                        className="bg-transparent border-none p-0 text-[10px] font-bold text-slate-600 dark:text-slate-300 focus:ring-0 cursor-pointer [color-scheme:light]"
-                                    />
-                                </div>
-
-                                <button 
-                                    onClick={handleHeaderUpdate}
-                                    disabled={savingHeader}
-                                    className="flex items-center gap-2 px-4 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:opacity-90 transition-all shadow-md active:scale-95 disabled:opacity-50"
-                                >
-                                    <span className={`material-symbols-outlined text-sm ${savingHeader ? 'animate-spin' : ''}`}>
-                                        {savingHeader ? 'sync' : 'save'}
-                                    </span>
-                                    {savingHeader ? 'Saving...' : 'Save Header'}
-                                </button>
-                                
-                                <button 
-                                    onClick={handleGenerateSummary}
-                                    disabled={generating}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-lg active:scale-95 disabled:opacity-50 ml-4 border border-slate-100 dark:border-transparent"
-                                >
-                                    <span className={`material-symbols-outlined text-sm ${generating ? 'animate-spin' : ''}`}>
-                                        {generating ? 'sync' : 'psychology'}
-                                    </span>
-                                    {generating ? 'Generating...' : 'AI Summary'}
-                                </button>
                             </div>
                         </div>
                         <div className="text-right">
@@ -360,8 +343,9 @@ const OrderDetail = () => {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-12 no-scrollbar bg-slate-50/50 dark:bg-slate-950/20">
-                    <div className="max-w-7xl mx-auto space-y-8 pb-20">
+                <div className="flex-1 flex overflow-hidden">
+                    <div className="flex-1 overflow-y-auto p-12 no-scrollbar bg-slate-50/50 dark:bg-slate-950/20">
+                        <div className="max-w-7xl mx-auto space-y-8 pb-20">
                         
                         {/* ━━ Info Cards Row ━━ */}
                         <div className="grid grid-cols-2 gap-8">
@@ -613,6 +597,143 @@ const OrderDetail = () => {
                         </div>
                     </div>
                 </div>
+
+                    {/* AI Summary Sidebar */}
+                    <aside className="w-[380px] border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0">
+                        <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center bg-slate-50/30">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-[18px]">psychology</span>
+                                </div>
+                                <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">AI Analysis</h3>
+                            </div>
+                            <button 
+                                onClick={handleGenerateSummary}
+                                disabled={generating}
+                                className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group relative"
+                                title="Sync with real conversation"
+                            >
+                                <span className={`material-symbols-outlined text-[20px] text-slate-400 group-hover:text-primary transition-colors ${generating ? 'animate-spin text-primary' : ''}`}>sync</span>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
+                            {generating ? (
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 mb-8">
+                                        <div className="w-2 h-2 bg-primary rounded-full animate-ping" />
+                                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">Listening to conversation...</span>
+                                    </div>
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={i} className="space-y-2 animate-pulse">
+                                            <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full w-1/4" />
+                                            <div className="h-2 bg-slate-50 dark:bg-slate-800/50 rounded-full w-full" />
+                                            <div className="h-2 bg-slate-50 dark:bg-slate-800/50 rounded-full w-5/6" />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : summary ? (() => {
+                                const intent = INTENT_CONFIG[summary.key_intent] || INTENT_CONFIG.unresolved;
+                                const risk   = RISK_CONFIG[summary.risk_level]   || RISK_CONFIG.medium;
+                                
+                                return (
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                                            <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${intent.cls}`}>
+                                                {intent.label}
+                                            </span>
+                                            <span className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${risk.dot}`} />
+                                                <span className={risk.text}>{risk.label}</span>
+                                            </span>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            {(() => {
+                                                const items = parseSummaryItems(summary.summary);
+                                                if (!items) {
+                                                    return (
+                                                        <div className="p-5 bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100/50 dark:border-blue-500/10 rounded-2xl">
+                                                            <div className="flex items-center gap-2 mb-3">
+                                                                <span className="material-symbols-outlined text-blue-500 text-sm">info</span>
+                                                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Executive Summary</span>
+                                                            </div>
+                                                            <p className="text-sm font-medium leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                                                                {renderInlineBold(summary.summary)}
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return items.map((item, i) => (
+                                                    <div key={i} className="p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm">
+                                                        <div className="flex items-start gap-4">
+                                                            <div className="w-6 h-6 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">
+                                                                {item.num || (i + 1)}
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                {item.label && (
+                                                                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">{item.label}</p>
+                                                                )}
+                                                                <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-400">
+                                                                    {renderInlineBold(item.body)}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <span className="w-1.5 h-1.5 bg-slate-900 dark:bg-slate-100 rounded-full" />
+                                                Data Quality
+                                            </h4>
+                                            <div className="p-4 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl">
+                                                <p className="text-xs font-bold text-slate-600 dark:text-slate-400">Analysis based on {summary.message_count} recent messages.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })() : summaryError ? (
+                                <div className="h-full flex flex-col items-center justify-center text-center px-6 space-y-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-red-500 text-2xl">error</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Analysis Failed</h4>
+                                        <p className="text-xs font-medium text-slate-400 leading-relaxed max-w-[200px] mx-auto">{summaryError}</p>
+                                    </div>
+                                    <button 
+                                        onClick={handleGenerateSummary}
+                                        className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+                                    >
+                                        Try Again
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-center px-6">
+                                    <span className="material-symbols-outlined text-4xl text-slate-200 mb-4">chat_bubble_outline</span>
+                                    <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2">No Conversations Found</h4>
+                                    <p className="text-xs font-medium text-slate-400 leading-relaxed">Connect with the vendor to start generating real-time AI insights.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-8 border-t border-slate-50 dark:border-slate-800 bg-slate-50/30">
+                            <button 
+                                onClick={handleGenerateSummary}
+                                disabled={generating}
+                                className="w-full py-4 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-slate-900/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+                            >
+                                <span className={`material-symbols-outlined text-[18px] ${generating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}>sync</span>
+                                {generating ? 'Analyzing Sync...' : 'Sync Conversation'}
+                            </button>
+                            <p className="text-[9px] font-bold text-slate-400 text-center mt-4 uppercase tracking-[0.2em]">Last synced: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                    </aside>
+                </div>
             </main>
             <style dangerouslySetInnerHTML={{ __html: `
                 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -624,150 +745,6 @@ const OrderDetail = () => {
                 .animate-scale-in { animation: scaleIn 0.35s cubic-bezier(0.16,1,0.3,1) both; }
             `}} />
 
-            {/* ━━ AI Summary Modal ━━ */}
-            {showPopup && (() => {
-                // ── markdown helpers ──────────────────────────────────────
-                // Render inline **bold** markers as <strong> spans
-                const renderInline = (text) => {
-                    const parts = text.split(/\*\*(.+?)\*\*/g);
-                    return parts.map((part, i) =>
-                        i % 2 === 1
-                            ? <strong key={i} className="font-black text-slate-900 dark:text-white">{part}</strong>
-                            : <span key={i}>{part}</span>
-                    );
-                };
-
-                // Split numbered list: "1. ... 2. ... 3. ..."
-                const parseItems = (raw) => {
-                    if (!raw) return [];
-                    // split on pattern like "1." "2." etc at start or after whitespace
-                    const chunks = raw.split(/(?=\d+\.\s+\*\*)/g).filter(Boolean);
-                    if (chunks.length <= 1) return null; // plain text, not a list
-                    return chunks.map(chunk => {
-                        const m = chunk.match(/^(\d+)\.\s+\*\*(.+?)\*\*\s*(.*)/s);
-                        if (!m) return { num: '', label: '', body: chunk.trim() };
-                        return { num: m[1], label: m[2], body: m[3].trim() };
-                    });
-                };
-
-                const SECTION_ICONS = ['task_alt', 'warning', 'calendar_month', 'support_agent'];
-
-                return (
-                    <div
-                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
-                        onClick={() => { if (!generating) { setShowPopup(false); setSummary(null); } }}
-                    >
-                        <div
-                            className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-scale-in flex flex-col max-h-[90vh]"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            {/* ── Header ── */}
-                            <div className="px-8 pt-8 pb-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-4 shrink-0">
-                                <div className={`p-3.5 rounded-2xl shadow-lg shrink-0 ${generating ? 'bg-slate-200 dark:bg-slate-700' : 'bg-blue-500 shadow-blue-500/25'}`}>
-                                    <span className={`material-symbols-outlined text-2xl text-white ${generating ? 'animate-spin text-slate-400' : ''}`}>
-                                        {generating ? 'sync' : 'auto_awesome'}
-                                    </span>
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.25em]">Compass AI · ProcureOps</p>
-                                    <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tighter truncate">
-                                        {generating ? 'Analysing conversation…' : `AI Summary — PO #${poNum}`}
-                                    </h3>
-                                </div>
-                            </div>
-
-                            {/* ── Scrollable body ── */}
-                            <div className="flex-1 overflow-y-auto no-scrollbar px-8 py-6 space-y-4">
-
-                                {/* Loading skeleton */}
-                                {generating && (
-                                    <div className="space-y-4 py-2">
-                                        {[1, 0.8, 0.65].map((w, i) => (
-                                            <div key={i} className={`h-4 bg-slate-100 dark:bg-slate-800 rounded-full animate-pulse`} style={{ width: `${w * 100}%` }} />
-                                        ))}
-                                        <div className="mt-6 space-y-3">
-                                            {[0.9, 1, 0.75].map((w, i) => (
-                                                <div key={i} className={`h-4 bg-slate-100 dark:bg-slate-800 rounded-full animate-pulse`} style={{ width: `${w * 100}%` }} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Real content */}
-                                {!generating && summary && (() => {
-                                    const intent = INTENT_CONFIG[summary.key_intent] || INTENT_CONFIG.unresolved;
-                                    const risk   = RISK_CONFIG[summary.risk_level]   || RISK_CONFIG.medium;
-                                    const genAt  = summary.generated_at
-                                        ? new Date(summary.generated_at).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
-                                        : '—';
-                                    const items = parseItems(summary.summary);
-
-                                    return (
-                                        <>
-                                            {/* Badges row */}
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${intent.cls}`}>
-                                                    {intent.label}
-                                                </span>
-                                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                                    <span className={`w-2 h-2 rounded-full shrink-0 ${risk.dot}`} />
-                                                    <span className={risk.text}>{risk.label}</span>
-                                                </span>
-                                            </div>
-
-                                            {/* Structured list or plain text */}
-                                            {items ? (
-                                                <div className="space-y-3">
-                                                    {items.map((item, i) => (
-                                                        <div key={i} className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                                            <div className="w-7 h-7 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-[11px] font-black shrink-0 mt-0.5">
-                                                                {item.num || <span className="material-symbols-outlined text-sm">{SECTION_ICONS[i] || 'info'}</span>}
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                {item.label && (
-                                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.label}</p>
-                                                                )}
-                                                                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
-                                                                    {renderInline(item.body)}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
-                                                        {renderInline(summary.summary || '')}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {/* Meta row */}
-                                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-1 pb-2">
-                                                <span>{summary.message_count} message{summary.message_count !== 1 ? 's' : ''} analysed</span>
-                                                <span>Generated {genAt}</span>
-                                            </div>
-                                        </>
-                                    );
-                                })()}
-                            </div>
-
-                            {/* ── Footer ── */}
-                            <div className="px-8 pt-4 pb-8 border-t border-slate-100 dark:border-slate-800 shrink-0 space-y-3">
-                                <button
-                                    onClick={() => { setShowPopup(false); setSummary(null); }}
-                                    className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-2xl uppercase tracking-widest text-[11px] hover:opacity-90 active:scale-95 transition-all"
-                                >
-                                    Close
-                                </button>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">
-                                    Generated from live chat history · Compass Intelligence Module
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                );
-            })()}
         </div>
     );
 };
