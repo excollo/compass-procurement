@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import { supabase } from '../lib/supabase';
 import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, LinearScale, Tooltip as ChartTooltip, Legend as ChartLegend, DoughnutController, BarController } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 
@@ -403,6 +404,7 @@ export default function DataExplorer() {
 
   const [lastUpdated, setLastUpdated] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Initialise directly from mock data — Edge Functions not yet deployed on Supabase.
   // Swap this back to API calls once the /functions/v1/analytics/* endpoints are live.
@@ -436,6 +438,39 @@ export default function DataExplorer() {
 
   useEffect(() => {
     setLastUpdated(new Date().toLocaleTimeString('en-US', { hour12: false }));
+
+    // fetch unread count on mount
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('escalations')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'open');
+      setUnreadCount(count || 0);
+    };
+    fetchCount();
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('data-explorer-notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'escalations'
+      }, () => {
+        setUnreadCount(prev => prev + 1);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'escalations',
+        filter: 'status=eq.resolved'
+      }, () => {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, []);
 
   const kpiData = apis.overview.data;
@@ -461,6 +496,46 @@ export default function DataExplorer() {
           </div>
 
           <div className="flex items-center gap-3 ml-2">
+            <div
+              onClick={() => navigate('/notifications')}
+              style={{
+                position: 'relative',
+                cursor: 'pointer',
+                padding: '6px',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              className="hover:bg-slate-50 transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
+                style={{ color: '#6B7280' }}>
+                <path d="M9 2a5 5 0 015 5v3l1.5 2H2.5L4 10V7a5 5 0 015-5z"
+                  stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M7 14.5a2 2 0 004 0"
+                  stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '2px',
+                  right: '2px',
+                  background: '#DC2626',
+                  color: '#fff',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  minWidth: '14px',
+                  height: '14px',
+                  borderRadius: '7px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 3px'
+                }}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </div>
             <div className="text-right hidden sm:block">
               <p className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>Ramesh Kumar</p>
               <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Admin</p>
