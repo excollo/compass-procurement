@@ -637,7 +637,10 @@ const EscalationDetail = () => {
                   {/* AI Summary */}
                   <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6 border-l-4 border-l-blue-500">
                     <p className="text-[9px] font-black uppercase tracking-widest text-blue-500 mb-2">COMPASS AI · generated on escalation</p>
-                    <p className="text-sm font-medium leading-relaxed text-slate-700 dark:text-slate-200">{escalation.ai_summary}</p>
+                    <p 
+                      className="text-sm font-medium leading-relaxed text-slate-700 dark:text-slate-200"
+                      dangerouslySetInnerHTML={{ __html: escalation.ai_summary ? escalation.ai_summary.replace(/\*(.*?)\*/g, '<strong class="font-black text-slate-900 dark:text-white">$1</strong>') : '' }}
+                    />
                   </div>
 
                   <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm p-8">
