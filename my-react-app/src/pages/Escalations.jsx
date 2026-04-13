@@ -460,7 +460,7 @@ const Escalations = () => {
                             className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-pointer group"
                           >
                             <td className="px-6 py-5">
-                              <span className="text-sm font-black text-blue-600 dark:text-blue-400 font-mono tracking-tighter hover:underline">
+                              <span className="text-sm font-black text-slate-900 dark:text-white font-mono tracking-tighter">
                                 {item.po_num}
                               </span>
                             </td>
