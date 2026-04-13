@@ -452,20 +452,6 @@ const EscalationDetail = () => {
               <span className="text-lg font-black text-slate-900 dark:text-white font-mono">PO {escalation.po_num}</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => navigate('/chats?po=' + escalation.po_num)}
-              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all"
-            >
-              View conversation
-            </button>
-            <button className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-              {actions.secondary}
-            </button>
-            <button className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all">
-              {actions.primary}
-            </button>
-          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 no-scrollbar pb-24">
