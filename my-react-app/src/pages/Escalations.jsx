@@ -20,7 +20,7 @@ const formatDate = (dateStr) => {
   const DD = String(d.getDate()).padStart(2, '0');
   const MM = String(d.getMonth() + 1).padStart(2, '0');
   const YYYY = d.getFullYear();
-  return `${DD} ${MM} ${YYYY}`;
+  return `${DD}/${MM}/${YYYY}`;
 };
 
 const PRIORITY_COLORS = {
