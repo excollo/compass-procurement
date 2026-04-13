@@ -489,7 +489,7 @@ const Dashboard = () => {
                       ) : (
                         paginatedEscal.map((row, idx) => (
                           <tr key={row.id || idx} className="hover:bg-red-50/20 transition-all border-l-4 border-red-400">
-                            <td className="px-6 py-3.5 w-[120px] flex-shrink-0"><span className="text-xs font-black text-slate-900">#{row.po_num || '—'}</span></td>
+                            <td className="px-6 py-3.5 w-[120px] flex-shrink-0"><span className="text-xs font-black text-slate-900">{row.po_num || '—'}</span></td>
                             <td className="px-6 py-3.5 whitespace-nowrap min-w-[140px]">
                               <div className="flex flex-col">
                                 <span className="text-[11px] font-black text-slate-800">{row.vendor_name || '—'}</span>
