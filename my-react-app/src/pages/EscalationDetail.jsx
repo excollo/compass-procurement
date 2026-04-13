@@ -104,7 +104,7 @@ const EscalationDetail = () => {
           resolution_note: noteText,
           updated_at: new Date().toISOString(),
           spoc_first_action_at: escalation.spoc_first_action_at ?? new Date().toISOString(),
-          spoc_name: 'Alex Rivera'
+          spoc_name: 'Ramesh Kumar'
         })
         .eq('id', id);
 
