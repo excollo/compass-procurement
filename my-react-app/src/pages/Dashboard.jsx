@@ -59,52 +59,52 @@ const FIXED_POS = ['4100259330', '4100260294', '4100260367', '4100260584', '4100
 /* ─── Dummy escalation rows (distinct from FIXED_POS) ──────── */
 const DUMMY_ESCALATIONS = [
   {
-    id: 'dum-1', po_num: '4100261001', vendor_code: 'VND-082', vendor_name: 'Apex Manufacturing', spoc: 'Ramesh Kumar',
+    id: 'dum-1', po_num: '4100261001', vendor_code: 'VND-082', vendor_name: 'Apex Manufacturing', spoc: 'Priya Sharma',
     message_text: 'Material not available at source warehouse',
     delivery_date: '2026-04-09', created_at: '2026-04-07T05:14:00Z', escalation: true,
   },
   {
-    id: 'dum-2', po_num: '4100261088', vendor_code: 'VND-115', vendor_name: 'Global Logistics', spoc: 'Ramesh Kumar',
+    id: 'dum-2', po_num: '4100261088', vendor_code: 'VND-115', vendor_name: 'Global Logistics', spoc: 'Priya Sharma',
     message_text: 'Shipment delayed due to port congestion',
     delivery_date: '2026-04-07', created_at: '2026-04-07T04:52:00Z', escalation: true,
   },
   {
-    id: 'dum-3', po_num: '4100261173', vendor_code: 'VND-034', vendor_name: 'TechFlow Corp', spoc: 'Ramesh Kumar',
+    id: 'dum-3', po_num: '4100261173', vendor_code: 'VND-034', vendor_name: 'TechFlow Corp', spoc: 'Priya Sharma',
     message_text: 'Partial quantity dispatched, balance pending',
     delivery_date: '2026-04-10', created_at: '2026-04-07T03:30:00Z', escalation: true,
   },
   {
-    id: 'dum-4', po_num: '4100261240', vendor_code: 'VND-209', vendor_name: 'Nexus Materials', spoc: 'Ramesh Kumar',
+    id: 'dum-4', po_num: '4100261240', vendor_code: 'VND-209', vendor_name: 'Nexus Materials', spoc: 'Priya Sharma',
     message_text: 'Quality inspection failed, re-work in progress',
     delivery_date: '2026-04-08', created_at: '2026-04-06T22:10:00Z', escalation: true,
   },
   {
-    id: 'dum-5', po_num: '4100261319', vendor_code: 'VND-057', vendor_name: 'Summit Supply', spoc: 'Ramesh Kumar',
+    id: 'dum-5', po_num: '4100261319', vendor_code: 'VND-057', vendor_name: 'Summit Supply', spoc: 'Priya Sharma',
     message_text: 'Vendor requesting delivery date extension by 3 days',
     delivery_date: '2026-04-12', created_at: '2026-04-06T18:45:00Z', escalation: true,
   },
   {
-    id: 'dum-6', po_num: '4100261402', vendor_code: 'VND-143', vendor_name: 'Prime Industrial', spoc: 'Ramesh Kumar',
+    id: 'dum-6', po_num: '4100261402', vendor_code: 'VND-143', vendor_name: 'Prime Industrial', spoc: 'Priya Sharma',
     message_text: 'Raw material price revision — approval needed',
     delivery_date: '2026-04-11', created_at: '2026-04-06T15:20:00Z', escalation: true,
   },
   {
-    id: 'dum-7', po_num: '4100261475', vendor_code: 'VND-061', vendor_name: 'Continental Cargo', spoc: 'Ramesh Kumar',
+    id: 'dum-7', po_num: '4100261475', vendor_code: 'VND-061', vendor_name: 'Continental Cargo', spoc: 'Priya Sharma',
     message_text: 'Truck breakdown on highway, ETA uncertain',
     delivery_date: '2026-04-07', created_at: '2026-04-06T12:05:00Z', escalation: true,
   },
   {
-    id: 'dum-8', po_num: '4100261530', vendor_code: 'VND-198', vendor_name: 'Swift Shipping', spoc: 'Ramesh Kumar',
+    id: 'dum-8', po_num: '4100261530', vendor_code: 'VND-198', vendor_name: 'Swift Shipping', spoc: 'Priya Sharma',
     message_text: 'Custom duty hold at port of entry',
     delivery_date: '2026-04-13', created_at: '2026-04-06T09:40:00Z', escalation: true,
   },
   {
-    id: 'dum-9', po_num: '4100261612', vendor_code: 'VND-022', vendor_name: 'Echo Packaging', spoc: 'Ramesh Kumar',
+    id: 'dum-9', po_num: '4100261612', vendor_code: 'VND-022', vendor_name: 'Echo Packaging', spoc: 'Priya Sharma',
     message_text: 'Packing list mismatch with invoice — rejected at gate',
     delivery_date: '2026-04-08', created_at: '2026-04-06T07:15:00Z', escalation: true,
   },
   {
-    id: 'dum-10', po_num: '4100261700', vendor_code: 'VND-174', vendor_name: 'Vanguard Co', spoc: 'Ramesh Kumar',
+    id: 'dum-10', po_num: '4100261700', vendor_code: 'VND-174', vendor_name: 'Vanguard Co', spoc: 'Priya Sharma',
     message_text: 'Labour strike at vendor facility, production halted',
     delivery_date: '2026-04-14', created_at: '2026-04-05T20:30:00Z', escalation: true,
   },
@@ -398,7 +398,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-3 ml-2">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-black text-slate-800">Ramesh Kumar</p>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Ops Manager</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Admin</p>
               </div>
               <img alt="User profile" className="w-9 h-9 rounded-full border-2 border-slate-200 shadow-sm"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8ov37m6Ru1jtLXavUm2Wv7-q8IqttbDcSU5OJzUCKT6ZmPdV8o10Gkm2bzBBlUkUAfR7nPEInOWhBPKK0JB-n56VPQC2sJvCZVr9a9eqzujzWSusoB7Pqo3Zl5PSfDCMpzoPbo0JZh5CHcjqc7lATQ1qKELXGJ7WeD5DB3SN3FaTJ4H9VBzP_Fvv51A3UPXtSYL_rtKoK2k8LRfiEklf60DY9c3Hul2Ue3yIjaHQmSa85wLfALExg-6xFvgM8lPDR6WQOIutN4I6d" />
@@ -497,7 +497,7 @@ const Dashboard = () => {
                               </div>
                             </td>
                             <td className="px-6 py-3.5 whitespace-nowrap min-w-[100px]">
-                               <span className="text-[11px] font-bold text-slate-600">{row.spoc || 'Ramesh Kumar'}</span>
+                               <span className="text-[11px] font-bold text-slate-600">{row.spoc || 'Priya Sharma'}</span>
                             </td>
                             <td className={`px-6 py-3.5 text-[10px] font-bold whitespace-nowrap ${ETD_COLOR(row.delivery_date)}`}>{fmtDate(row.delivery_date)}</td>
                             <td className="px-6 py-3.5 min-w-[180px]">
