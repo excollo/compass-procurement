@@ -1,19 +1,16 @@
+@import './styles/theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer utilities {
   .bg-cta-gradient {
-    background: linear-gradient(135deg, #004ac6 0%, #2563eb 100%);
-  }
-
-  .glass-insight {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(24px);
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
   }
 
   .custom-shadow {
-    box-shadow: 0 12px 32px -4px rgba(25, 28, 30, 0.06);
+    box-shadow: var(--shadow-card);
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -28,7 +25,10 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  @apply bg-background text-on-surface antialiased;
+  background: var(--color-page-bg);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1,
@@ -38,7 +38,7 @@ h4,
 h5,
 h6,
 .font-headline {
-  font-family: 'Manrope', sans-serif;
+  font-family: 'Outfit', 'Manrope', sans-serif;
 }
 
 .material-symbols-outlined {
