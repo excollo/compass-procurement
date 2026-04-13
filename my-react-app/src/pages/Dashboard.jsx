@@ -113,42 +113,66 @@ const DUMMY_ESCALATIONS = [
 /* ─── KPI cards ─────────────────────────────────────────── */
 
 const VendorKpiCard = ({ value }) => (
-  <div className="bg-white p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100/80 flex flex-col justify-between h-[120px]">
+  <div
+    className="p-5 rounded-[var(--radius-card-lg)] flex flex-col justify-between h-[120px] transition-all cursor-default border-l-[4px]"
+    style={{
+      background: 'var(--color-surface)',
+      boxShadow: 'var(--shadow-card)',
+      border: '1px solid var(--color-border-light)',
+      borderLeftWidth: '4px',
+      borderLeftColor: 'var(--color-brand-primary)',
+    }}
+  >
     <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-slate-900">
-        <span className="material-symbols-outlined text-[18px] text-white">group</span>
+      <div className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: 'var(--color-brand-light)' }}>
+        <span className="material-symbols-outlined text-[18px]" style={{ color: 'var(--color-brand-primary)' }}>group</span>
       </div>
-      <span className="text-sm font-semibold text-slate-500">Vendors</span>
+      <span className="text-[12px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Vendors</span>
     </div>
     <div>
       <div className="flex items-baseline">
-        <h3 className="text-[32px] font-black text-slate-900 leading-none">
+        <h3 className="text-[28px] font-semibold leading-none" style={{ color: 'var(--color-text-primary)' }}>
           {value === null ? '-' : value}
         </h3>
-        <span className="text-[20px] font-medium text-slate-400 ml-0.5">
+        <span className="text-[18px] font-normal ml-0.5" style={{ color: 'var(--color-text-muted)' }}>
           /{value === null ? '-' : value}
         </span>
       </div>
-      <p className="text-[13px] text-slate-500 mt-1">Responding</p>
+      <p className="text-[12px] font-medium mt-1" style={{ color: 'var(--color-text-secondary)' }}>Responding</p>
     </div>
   </div>
 );
 
-const MetricCard = ({ icon, label, value, sub, colorClass, isDimmed }) => (
-  <div className={`bg-white p-5 rounded-[1.25rem] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.02)] hover:-translate-y-0.5 transition-all cursor-default border border-slate-100/80 flex flex-col justify-between h-[120px] ${isDimmed ? 'opacity-50' : ''}`}>
+const MetricCard = ({ icon, label, value, sub, colorClass, isDimmed, borderColor, iconBg, iconColor }) => (
+  <div
+    className={`p-5 rounded-[var(--radius-card-lg)] flex flex-col justify-between h-[120px] transition-all cursor-default ${isDimmed ? 'opacity-50' : ''}`}
+    style={{
+      background: 'var(--color-surface)',
+      boxShadow: 'var(--shadow-card)',
+      border: '1px solid var(--color-border-light)',
+      borderLeftWidth: '4px',
+      borderLeftColor: borderColor || 'var(--color-border)',
+    }}
+  >
     <div className="flex items-center gap-3">
-      <div className={`w-8 h-8 rounded-[10px] flex items-center justify-center ${isDimmed ? 'bg-slate-800' : 'bg-slate-900'}`}>
-        <span className={`material-symbols-outlined text-[18px] ${isDimmed ? 'text-slate-400' : 'text-white'}`}>{icon}</span>
+      <div
+        className="w-8 h-8 rounded-[10px] flex items-center justify-center"
+        style={{ background: iconBg || 'var(--color-neutral-bg)' }}
+      >
+        <span
+          className="material-symbols-outlined text-[18px]"
+          style={{ color: iconColor || 'var(--color-neutral)' }}
+        >{icon}</span>
       </div>
-      <span className="text-sm font-semibold text-slate-500">{label}</span>
+      <span className="text-[12px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>{label}</span>
     </div>
     <div>
       <div className="flex items-baseline">
-        <h3 className={`text-[32px] font-black leading-none ${isDimmed ? 'text-slate-400' : 'text-slate-900'}`}>
+        <h3 className="text-[28px] font-semibold leading-none" style={{ color: isDimmed ? 'var(--color-text-muted)' : 'var(--color-text-primary)' }}>
           {value === null ? '-' : value}
         </h3>
       </div>
-      <p className="text-[13px] text-slate-500 mt-1">{sub}</p>
+      <p className="text-[12px] font-medium mt-1" style={{ color: 'var(--color-text-secondary)' }}>{sub}</p>
     </div>
   </div>
 );
@@ -343,13 +367,24 @@ const Dashboard = () => {
 
           <div className="flex items-center gap-3">
             <button onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest rounded-xl border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-[var(--radius-btn)] transition-all disabled:opacity-50"
+              style={{
+                background: 'var(--color-surface-muted)',
+                color: 'var(--color-text-secondary)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
               <span className={`material-symbols-outlined text-[16px] ${syncing ? 'animate-spin' : ''}`}>sync</span>
               {syncing ? 'Syncing…' : 'Sync'}
             </button>
 
             <button onClick={() => setModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-700 transition-all shadow-sm">
+              className="flex items-center gap-2 px-4 py-2 text-white text-xs font-semibold uppercase tracking-wider rounded-[var(--radius-btn)] transition-all"
+              style={{
+                background: 'var(--color-brand-primary)',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
               <span className="material-symbols-outlined text-[16px]">upload_file</span>
               Import POs
             </button>
@@ -378,7 +413,7 @@ const Dashboard = () => {
                   position: 'absolute',
                   top: '2px',
                   right: '2px',
-                  background: '#DC2626',
+                  background: 'var(--color-danger)',
                   color: '#fff',
                   fontSize: '9px',
                   fontWeight: 700,
@@ -397,10 +432,11 @@ const Dashboard = () => {
 
             <div className="flex items-center gap-3 ml-2">
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-black text-slate-800">Ramesh Kumar</p>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Admin</p>
+                <p className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>Ramesh Kumar</p>
+                <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Admin</p>
               </div>
-              <img alt="User profile" className="w-9 h-9 rounded-full border-2 border-slate-200 shadow-sm"
+              <img alt="User profile" className="w-9 h-9 rounded-full shadow-sm"
+                style={{ border: '2px solid var(--color-border)' }}
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8ov37m6Ru1jtLXavUm2Wv7-q8IqttbDcSU5OJzUCKT6ZmPdV8o10Gkm2bzBBlUkUAfR7nPEInOWhBPKK0JB-n56VPQC2sJvCZVr9a9eqzujzWSusoB7Pqo3Zl5PSfDCMpzoPbo0JZh5CHcjqc7lATQ1qKELXGJ7WeD5DB3SN3FaTJ4H9VBzP_Fvv51A3UPXtSYL_rtKoK2k8LRfiEklf60DY9c3Hul2Ue3yIjaHQmSa85wLfALExg-6xFvgM8lPDR6WQOIutN4I6d" />
             </div>
           </div>
@@ -408,54 +444,67 @@ const Dashboard = () => {
 
         {/* ── Content ── */}
         <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
-          <div className="max-w-[1600px] mx-auto w-full space-y-6">
+          <div className="max-w-[1600px] mx-auto w-full space-y-8">
 
             {/* Page title */}
             <div>
-              <h2 className="text-3xl font-black text-slate-900 font-headline tracking-tighter uppercase leading-none">
+              <h2 className="text-[28px] font-bold font-headline tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>
                 Operations Dashboard
               </h2>
-              <p className="text-slate-400 font-medium mt-1.5 text-sm">
+              <p className="font-medium mt-2 text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
                 Real-time monitoring of vendor purchase order conversations.
               </p>
             </div>
 
             {/* ── KPI Grid ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-5">
               <VendorKpiCard value={kpis.totalVendors} />
-              <MetricCard label="Critical" value={escalations.length} icon="warning" sub="Escalations" colorClass="text-red-500" />
-              <MetricCard label="Overdue" value={kpis.overdue} icon="inventory_2" sub="Late POs" colorClass="text-red-500" />
-              <MetricCard label="Active Chats" value={kpis.activeChats} icon="forum" sub="Last 30 minutes" colorClass="text-emerald-500" />
-              <MetricCard label="Due Today" value={kpis.dueToday} icon="calendar_today" sub="Delivery date = today" colorClass={kpis.dueToday > 0 ? 'text-amber-500' : 'text-slate-500'} />
+              <MetricCard label="Critical" value={escalations.length} icon="warning" sub="Escalations"
+                borderColor="var(--color-danger)" iconBg="var(--color-danger-bg)" iconColor="var(--color-danger)" />
+              <MetricCard label="Overdue" value={kpis.overdue} icon="inventory_2" sub="Late POs"
+                borderColor="var(--color-warning)" iconBg="var(--color-warning-bg)" iconColor="var(--color-warning)" />
+              <MetricCard label="Active Chats" value={kpis.activeChats} icon="forum" sub="Last 30 minutes"
+                borderColor="var(--color-success)" iconBg="var(--color-success-bg)" iconColor="var(--color-success)" />
+              <MetricCard label="Due Today" value={kpis.dueToday} icon="calendar_today" sub="Delivery date = today"
+                borderColor={kpis.dueToday > 0 ? 'var(--color-warning)' : 'var(--color-border)'}
+                iconBg={kpis.dueToday > 0 ? 'var(--color-warning-bg)' : 'var(--color-neutral-bg)'}
+                iconColor={kpis.dueToday > 0 ? 'var(--color-warning)' : 'var(--color-neutral)'} />
             </div>
 
             {/* ── Bottom row: Escalations (left) + Conversations (right) ── */}
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
 
               {/* ── Escalations table ── */}
-              <div className="xl:col-span-3 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div
+                className="xl:col-span-3 rounded-[var(--radius-card-lg)] overflow-hidden h-full flex flex-col"
+                style={{
+                  background: 'var(--color-surface)',
+                  boxShadow: 'var(--shadow-card)',
+                  border: '1px solid var(--color-border-light)',
+                }}
+              >
+                <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-red-500 text-lg">notification_important</span>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-danger-bg)' }}>
+                      <span className="material-symbols-outlined text-lg" style={{ color: 'var(--color-danger)' }}>notification_important</span>
                     </div>
                     <div>
-                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Escalations</h3>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Real-time · messages with escalation flag</p>
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--color-text-primary)' }}>Escalations</h3>
+                      <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>Real-time · messages with escalation flag</p>
                     </div>
                     {newEscalCount > 0 && (
-                      <span className="px-2.5 py-0.5 bg-red-500 text-white text-[9px] font-black rounded-full animate-pulse">+{newEscalCount} new</span>
+                      <span className="px-2.5 py-0.5 text-white text-[9px] font-bold rounded-full animate-pulse" style={{ background: 'var(--color-danger)' }}>+{newEscalCount} new</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-full border border-emerald-100">
+                    <span className="flex items-center gap-1.5 text-[9px] font-semibold px-2.5 py-1.5 rounded-full" style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)' }}>
                       <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--color-success)' }} />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: 'var(--color-success)' }} />
                       </span>
                       Live
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-full border border-slate-100">
+                    <span className="text-[9px] font-semibold px-2.5 py-1.5 rounded-full" style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-muted)', border: '1px solid var(--color-border-light)' }}>
                       {escalations.length} row{escalations.length !== 1 ? 's' : ''}
                     </span>
                   </div>
@@ -463,10 +512,10 @@ const Dashboard = () => {
 
                 <div className="overflow-x-auto flex-1">
                   <table className="w-full border-collapse min-w-[800px]">
-                    <thead className="bg-slate-50/60 border-b border-slate-100">
+                    <thead style={{ background: 'var(--color-surface-muted)', borderBottom: '1px solid var(--color-border-light)' }}>
                       <tr>
                         {['PO #', 'Vendor Name', 'SPOC', 'Delivery', 'Reason / Message', 'Category'].map(h => (
-                          <th key={h} className="text-left px-6 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400">{h}</th>
+                          <th key={h} className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -488,20 +537,20 @@ const Dashboard = () => {
                         </tr>
                       ) : (
                         paginatedEscal.map((row, idx) => (
-                          <tr key={row.id || idx} className="hover:bg-red-50/20 transition-all border-l-4 border-red-400">
-                            <td className="px-6 py-3.5 w-[120px] flex-shrink-0"><span className="text-xs font-black text-slate-900">{row.po_num || '—'}</span></td>
+                          <tr key={row.id || idx} className="transition-all" style={{ borderLeft: '4px solid var(--color-danger-border)' }}>
+                            <td className="px-6 py-3.5 w-[120px] flex-shrink-0"><span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>{row.po_num || '—'}</span></td>
                             <td className="px-6 py-3.5 whitespace-nowrap min-w-[140px]">
                               <div className="flex flex-col">
-                                <span className="text-[11px] font-black text-slate-800">{row.vendor_name || '—'}</span>
-                                {row.vendor_code && <span className="text-[9px] text-slate-400 uppercase tracking-widest">{row.vendor_code}</span>}
+                                <span className="text-[11px] font-semibold" style={{ color: 'var(--color-text-primary)' }}>{row.vendor_name || '—'}</span>
+                                {row.vendor_code && <span className="text-[9px] uppercase tracking-widest" style={{ color: 'var(--color-text-tertiary)' }}>{row.vendor_code}</span>}
                               </div>
                             </td>
                             <td className="px-6 py-3.5 whitespace-nowrap min-w-[100px]">
-                               <span className="text-[11px] font-bold text-slate-600">{row.spoc || 'Priya Sharma'}</span>
+                               <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{row.spoc || 'Priya Sharma'}</span>
                             </td>
                             <td className={`px-6 py-3.5 text-[10px] font-bold whitespace-nowrap ${ETD_COLOR(row.delivery_date)}`}>{fmtDate(row.delivery_date)}</td>
                             <td className="px-6 py-3.5 min-w-[180px]">
-                              <p className="text-xs text-slate-700 font-medium leading-snug">{row.message_text || '—'}</p>
+                              <p className="text-xs font-medium leading-snug" style={{ color: 'var(--color-text-secondary)' }}>{row.message_text || '—'}</p>
                             </td>
                             <td className="px-6 py-3.5 whitespace-nowrap">
                               <CategoryBadge msg={row.message_text} />
@@ -514,7 +563,7 @@ const Dashboard = () => {
                 </div>
 
                 {!escalLoading && (
-                  <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  <div className="px-6 py-4 flex justify-between items-center text-[10px] font-semibold uppercase tracking-wider" style={{ background: 'var(--color-surface-muted)', borderTop: '1px solid var(--color-border-light)', color: 'var(--color-text-tertiary)' }}>
                     <span>
                       {escalations.length > 0
                         ? `${(escPage - 1) * ESCAL_PER_PAGE + 1}–${Math.min(escPage * ESCAL_PER_PAGE, escalations.length)} of ${escalations.length}`
@@ -522,12 +571,14 @@ const Dashboard = () => {
                     </span>
                     <div className="flex gap-1.5 items-center">
                       <button disabled={escPage === 1} onClick={() => setEscPage(p => p - 1)}
-                        className="flex items-center gap-1 px-2.5 py-1 border border-slate-200 rounded-lg hover:bg-white hover:text-blue-600 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-btn)] transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
                         <span className="material-symbols-outlined text-[10px]">west</span> Prev
                       </button>
-                      <span className="px-2.5 py-1 font-bold text-slate-500 bg-white border border-slate-200 rounded-lg">{escPage}/{totalEscalPages}</span>
+                      <span className="px-2.5 py-1 font-semibold rounded-[var(--radius-btn)]" style={{ color: 'var(--color-text-secondary)', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>{escPage}/{totalEscalPages}</span>
                       <button disabled={escPage >= totalEscalPages} onClick={() => setEscPage(p => p + 1)}
-                        className="flex items-center gap-1 px-2.5 py-1 border border-slate-200 rounded-lg hover:bg-white hover:text-blue-600 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-btn)] transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
                         Next <span className="material-symbols-outlined text-[10px]">east</span>
                       </button>
                     </div>
@@ -536,15 +587,22 @@ const Dashboard = () => {
               </div>
 
               {/* ── Recent Conversations panel ── */}
-              <div className="xl:col-span-1 bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div
+                className="xl:col-span-1 rounded-[var(--radius-card-lg)] overflow-hidden h-full flex flex-col"
+                style={{
+                  background: 'var(--color-surface)',
+                  boxShadow: 'var(--shadow-card)',
+                  border: '1px solid var(--color-border-light)',
+                }}
+              >
+                <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-blue-500 text-lg">forum</span>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-brand-light)' }}>
+                      <span className="material-symbols-outlined text-lg" style={{ color: 'var(--color-brand-primary)' }}>forum</span>
                     </div>
                     <div>
-                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Recent Conversations</h3>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Click a row to open the chat</p>
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--color-text-primary)' }}>Recent Conversations</h3>
+                      <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>Click a row to open the chat</p>
                     </div>
                   </div>
                 </div>
@@ -571,21 +629,22 @@ const Dashboard = () => {
                       <div
                         key={po.po_num}
                         onClick={() => navigate(`/chats?po=${po.po_num}`)}
-                        className="flex items-center gap-4 px-6 py-3.5 hover:bg-blue-50/40 cursor-pointer transition-all group"
+                        className="flex items-center gap-4 px-6 py-3.5 cursor-pointer transition-all group"
+                        style={{ ':hover': { background: 'var(--color-brand-light)' } }}
                       >
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center font-black text-sm text-blue-600 flex-shrink-0">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm flex-shrink-0" style={{ background: 'var(--color-brand-light)', color: 'var(--color-brand-primary)' }}>
                           {(po.vendor_name || po.po_num).charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-black text-slate-800">PO-{po.po_num}</p>
-                          <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">{po.vendor_name || '—'}</p>
+                          <p className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>PO-{po.po_num}</p>
+                          <p className="text-[10px] font-medium truncate mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{po.vendor_name || '—'}</p>
                           {po.delivery_date && (
                             <p className={`text-[9px] font-bold mt-0.5 ${ETD_COLOR(po.delivery_date)}`}>
                               ETD: {fmtDate(po.delivery_date)}
                             </p>
                           )}
                         </div>
-                        <span className="material-symbols-outlined text-slate-200 group-hover:text-blue-400 transition-all text-[18px]">chevron_right</span>
+                        <span className="material-symbols-outlined transition-all text-[18px]" style={{ color: 'var(--color-text-muted)' }}>chevron_right</span>
                       </div>
                     ))
                   )}
@@ -647,61 +706,6 @@ const Dashboard = () => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .font-headline { font-family: 'Outfit', sans-serif; }
-
-        /* ── KPI cards ── */
-        .db-kpi-card {
-          position: relative; padding: 1.25rem; border-radius: 1.25rem;
-          border: 1px solid #f1f5f9; background: white;
-          box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden;
-          transition: transform .15s, box-shadow .15s; cursor: default;
-        }
-        .db-kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
-        .db-kpi-icon {
-          display: inline-flex; align-items: center; justify-content: center;
-          width: 2.25rem; height: 2.25rem; border-radius: .75rem; margin-bottom: .75rem;
-        }
-        .db-kpi-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .12em; color: #94a3b8; margin-bottom: .2rem; }
-        .db-kpi-value { font-size: 1.875rem; font-weight: 900; line-height: 1; font-family: 'Outfit', sans-serif; color: #0f172a; }
-        .db-kpi-sub   { font-size: 9px; font-weight: 700; color: #cbd5e1; margin-top: .3rem; }
-        .db-kpi-loading {
-          display: inline-block; width: 2.5rem; height: 1.5rem;
-          background: linear-gradient(90deg, #f1f5f9, #e2e8f0, #f1f5f9);
-          background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: .5rem;
-        }
-        @keyframes shimmer { 0%{ background-position: 200% 0 } 100%{ background-position: -200% 0 } }
-
-        .kpi-neutral .db-kpi-icon { background: #f8fafc; color: #64748b; }
-        .kpi-blue    .db-kpi-icon { background: #eff6ff; color: #2563eb; }
-        .kpi-blue    .db-kpi-value { color: #2563eb; }
-        .kpi-indigo  .db-kpi-icon { background: #eef2ff; color: #4f46e5; }
-        .kpi-indigo  .db-kpi-value { color: #4f46e5; }
-        .kpi-green   .db-kpi-icon { background: #f0fdf4; color: #16a34a; }
-        .kpi-green   .db-kpi-value { color: #16a34a; }
-        .kpi-amber   .db-kpi-icon { background: #fffbeb; color: #d97706; }
-        .kpi-amber   .db-kpi-value { color: #d97706; }
-
-        /* ── Stage cards ── */
-        .stage-card {
-          padding: .875rem 1rem; border-radius: 1.125rem; border: 1px solid;
-          transition: transform .12s, box-shadow .12s; cursor: default;
-        }
-        .stage-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.07); }
-        .stage-icon {
-          width: 2.25rem; height: 2.25rem; border-radius: .75rem;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .stage-badge {
-          display: inline-flex; align-items: center; justify-content: center;
-          min-width: 1.5rem; height: 1.5rem; padding: 0 .375rem;
-          border-radius: .5rem; font-size: 11px; font-weight: 900; color: white; line-height: 1;
-        }
-        .po-chip {
-          display: inline-flex; align-items: center;
-          padding: 2px 7px; border-radius: 6px; border: 1px solid;
-          font-size: 9px; font-weight: 900; letter-spacing: .03em;
-          transition: opacity .1s; cursor: default;
-        }
-        .po-chip:hover { opacity: .65; }
       `}</style>
     </div>
   );
