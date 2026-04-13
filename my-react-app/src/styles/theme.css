@@ -1,0 +1,80 @@
+/* ═══════════════════════════════════════════════════════════
+   COMPASS PROCUREMENT — DESIGN SYSTEM TOKENS
+   Premium Enterprise SaaS · Navy/Slate Palette
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Brand / Primary ── */
+  --color-brand-primary: #1e40af;          /* deep navy-blue: actions, active nav, links */
+  --color-brand-primary-hover: #1e3a8a;    /* darker on hover */
+  --color-brand-light: #eff6ff;            /* brand tints, selected bg */
+  --color-brand-muted: #dbeafe;            /* soft brand wash */
+
+  /* ── Semantic: Success ── */
+  --color-success: #059669;                /* confirmed, full, healthy */
+  --color-success-bg: #ecfdf5;
+  --color-success-text: #065f46;
+  --color-success-border: #a7f3d0;
+
+  /* ── Semantic: Warning ── */
+  --color-warning: #d97706;                /* partial, at-risk, delayed */
+  --color-warning-bg: #fffbeb;
+  --color-warning-text: #92400e;
+  --color-warning-border: #fcd34d;
+
+  /* ── Semantic: Danger ── */
+  --color-danger: #dc2626;                 /* critical, zero, overdue */
+  --color-danger-bg: #fef2f2;
+  --color-danger-text: #991b1b;
+  --color-danger-border: #fca5a5;
+
+  /* ── Semantic: Info ── */
+  --color-info: #2563eb;
+  --color-info-bg: #eff6ff;
+  --color-info-text: #1e40af;
+
+  /* ── Neutral ── */
+  --color-neutral: #6b7280;
+  --color-neutral-bg: #f3f4f6;
+  --color-neutral-text: #374151;
+
+  /* ── Surfaces ── */
+  --color-page-bg: #f8fafc;                /* page background — cool off-white */
+  --color-surface: #ffffff;                /* card / panel surface */
+  --color-surface-muted: #f9fafb;          /* subtle secondary surface */
+  --color-surface-elevated: #ffffff;       /* elevated panel */
+
+  /* ── Borders ── */
+  --color-border: #e5e7eb;                 /* standard border */
+  --color-border-light: #f1f5f9;           /* subtle border */
+  --color-border-strong: #d1d5db;          /* emphasized border */
+
+  /* ── Text ── */
+  --color-text-primary: #0f172a;           /* headings, values — near black slate */
+  --color-text-secondary: #475569;         /* body, labels */
+  --color-text-tertiary: #94a3af;          /* captions, helpers */
+  --color-text-muted: #cbd5e1;             /* disabled / inactive */
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  /* ── Radius ── */
+  --radius-card: 1rem;
+  --radius-card-lg: 1.25rem;
+  --radius-pill: 9999px;
+  --radius-btn: 0.625rem;
+
+  /* ── Sidebar ── */
+  --sidebar-width: 16rem;
+  --sidebar-bg: #ffffff;
+  --sidebar-border: var(--color-border-light);
+  --sidebar-section-label: var(--color-text-tertiary);
+  --sidebar-item-text: var(--color-text-secondary);
+  --sidebar-item-hover-bg: var(--color-surface-muted);
+  --sidebar-item-active-bg: var(--color-brand-light);
+  --sidebar-item-active-text: var(--color-brand-primary);
+  --sidebar-item-active-accent: var(--color-brand-primary);
+}
