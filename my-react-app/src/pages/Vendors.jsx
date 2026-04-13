@@ -17,6 +17,7 @@ const Vendors = () => {
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [error, setError] = useState(null);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -24,6 +25,39 @@ const Vendors = () => {
 
     useEffect(() => {
         fetchVendors();
+
+        // fetch unread count on mount
+        const fetchCount = async () => {
+          const { count } = await supabase
+            .from('escalations')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'open');
+          setUnreadCount(count || 0);
+        };
+        fetchCount();
+    }, []);
+
+    useEffect(() => {
+        const channel = supabase
+          .channel('vendors-notifications')
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'escalations'
+          }, () => {
+            setUnreadCount(prev => prev + 1);
+          })
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'escalations',
+            filter: 'status=eq.resolved'
+          }, () => {
+            setUnreadCount(prev => Math.max(0, prev - 1));
+          })
+          .subscribe();
+    
+        return () => supabase.removeChannel(channel);
     }, []);
 
     useEffect(() => {
@@ -88,9 +122,51 @@ const Vendors = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                           <img alt="Profile" className="w-8 h-8 rounded-full border-2 border-primary/20 shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpRZ82Z9vlt8SyVdsbUz4q-XFlmZojEzyvWp90xVibsAElJPHW_meJckQWZJtoPzP5MJhSZLiW07y47QlgPdvId2zdjsImRevGIZD_iKx2C2yIoMsdsI26776buMmB2IZw_TcFkmbdrXj5d5ipKaIrZOei16-LsfiINHvvt43OGveovU-XUhhNDvQdJjJm6NRCjPfa6TU13zSUWI7Y-x_kXNhBC3H4m_Bn1Y5HZHFACgA_5nb0ORR6Upj4N-Mxe3xekbptlc3YMSes" />
+                        <div
+                          onClick={() => navigate('/notifications')}
+                          style={{
+                            position: 'relative',
+                            cursor: 'pointer',
+                            padding: '6px',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          className="hover:bg-slate-50 transition-colors"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
+                            style={{ color: '#6B7280' }}>
+                            <path d="M9 2a5 5 0 015 5v3l1.5 2H2.5L4 10V7a5 5 0 015-5z"
+                              stroke="currentColor" strokeWidth="1.3"/>
+                            <path d="M7 14.5a2 2 0 004 0"
+                              stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                          </svg>
+                          {unreadCount > 0 && (
+                            <span style={{
+                              position: 'absolute',
+                              top: '2px',
+                              right: '2px',
+                              background: '#DC2626',
+                              color: '#fff',
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              minWidth: '14px',
+                              height: '14px',
+                              borderRadius: '7px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '0 3px'
+                            }}>
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                          )}
                         </div>
+                        <div className="text-right hidden sm:block">
+                           <p className="text-xs font-semibold text-slate-900 dark:text-white">Ramesh Kumar</p>
+                           <p className="text-[10px] uppercase tracking-wider text-slate-400">Admin</p>
+                        </div>
+                        <img alt="User profile" className="w-9 h-9 rounded-full border-2 border-slate-200 shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8ov37m6Ru1jtLXavUm2Wv7-q8IqttbDcSU5OJzUCKT6ZmPdV8o10Gkm2bzBBlUkUAfR7nPEInOWhBPKK0JB-n56VPQC2sJvCZVr9a9eqzujzWSusoB7Pqo3Zl5PSfDCMpzoPbo0JZh5CHcjqc7lATQ1qKELXGJ7WeD5DB3SN3FaTJ4H9VBzP_Fvv51A3UPXtSYL_rtKoK2k8LRfiEklf60DY9c3Hul2Ue3yIjaHQmSa85wLfALExg-6xFvgM8lPDR6WQOIutN4I6d" />
                     </div>
                 </header>
 
