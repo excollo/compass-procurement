@@ -182,9 +182,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  /* conversations list for the 5 fixed POs */
+  /* conversations list */
   const [convos, setConvos] = useState([]);
   const [convosLoading, setConvosLoading] = useState(true);
+  const [convoPage, setConvoPage] = useState(1);
+  const CONVOS_PER_PAGE = 5;
 
   /* escalations */
   const [escalations, setEscalations] = useState([]);
@@ -291,7 +293,8 @@ const Dashboard = () => {
         vendors[phone].po_count++;
       });
       
-      setConvos(Object.values(vendors).slice(0, 8)); // Top 8 vendors
+      setConvos(Object.values(vendors));
+      setConvoPage(1);
     } catch (err) {
       console.error('Convos fetch', err);
     } finally { setConvosLoading(false); }
@@ -355,6 +358,9 @@ const Dashboard = () => {
   /* ─── pagination ───────────────────────────────────────── */
   const totalEscalPages = Math.ceil(escalations.length / ESCAL_PER_PAGE) || 1;
   const paginatedEscal = escalations.slice((escPage - 1) * ESCAL_PER_PAGE, escPage * ESCAL_PER_PAGE);
+
+  const totalConvoPages = Math.ceil(convos.length / CONVOS_PER_PAGE) || 1;
+  const paginatedConvos = convos.slice((convoPage - 1) * CONVOS_PER_PAGE, convoPage * CONVOS_PER_PAGE);
 
   /* ─── sync ──────────────────────────────────────────────── */
   const handleSync = async () => {
@@ -638,7 +644,7 @@ const Dashboard = () => {
                       <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">No conversations found</p>
                     </div>
                   ) : (
-                    convos.map((v) => (
+                    paginatedConvos.map((v) => (
                       <div
                         key={v.vendor_phone}
                         onClick={() => navigate(`/chats?po=${v.po_num}`)}
@@ -664,6 +670,29 @@ const Dashboard = () => {
                     ))
                   )}
                 </div>
+
+                {!convosLoading && (
+                  <div className="px-6 py-4 flex justify-between items-center text-[10px] font-semibold uppercase tracking-wider" style={{ background: 'var(--color-surface-muted)', borderTop: '1px solid var(--color-border-light)', color: 'var(--color-text-tertiary)' }}>
+                    <span>
+                      {convos.length > 0
+                        ? `${(convoPage - 1) * CONVOS_PER_PAGE + 1}–${Math.min(convoPage * CONVOS_PER_PAGE, convos.length)} of ${convos.length}`
+                        : '0 chats'}
+                    </span>
+                    <div className="flex gap-1.5 items-center">
+                      <button disabled={convoPage === 1} onClick={() => setConvoPage(p => p - 1)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-btn)] transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                        <span className="material-symbols-outlined text-[10px]">west</span> Prev
+                      </button>
+                      <span className="px-2.5 py-1 font-semibold rounded-[var(--radius-btn)]" style={{ color: 'var(--color-text-secondary)', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>{convoPage}/{totalConvoPages}</span>
+                      <button disabled={convoPage >= totalConvoPages} onClick={() => setConvoPage(p => p + 1)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-btn)] transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                        Next <span className="material-symbols-outlined text-[10px]">east</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>{/* end conversations panel */}
 
             </div>{/* end bottom grid */}
