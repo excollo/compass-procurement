@@ -6,6 +6,39 @@ import useChatMessages from '../hooks/useChatMessages';
 import { computeResponseSLA, getLatestCommunicationState } from '../lib/slaUtils';
 import { useSLATimer } from '../hooks/useSLATimer';
 
+// ── Yashoda Gas Service Mock Data ───────────────────────────────────────────
+const YASHODA_MOCK_DATA = {
+  vendor_name: 'Yashoda Gas Service',
+  messages: [
+    {
+      id: 'y1',
+      sender_type: 'bot',
+      message_text: "System (Day -7): Initial outreach message sent regarding PO 4100260367.",
+      sent_at: "2026-04-07T09:00:00Z",
+    },
+    {
+      id: 'y2',
+      sender_type: 'bot',
+      message_text: "System (Day -5): First reminder — PO 4100260367 delivery is approaching. Please confirm status.",
+      sent_at: "2026-04-09T10:30:00Z",
+    },
+    {
+      id: 'y3',
+      sender_type: 'bot',
+      message_text: "System (Day -3): Second reminder — PO 4100260367 is due in 3 days. We haven't heard from you.",
+      sent_at: "2026-04-11T14:15:00Z",
+    },
+    {
+      id: 'y4',
+      sender_type: 'bot',
+      message_text: "System (Day -1): Final reminder — PO 4100260367 is due tomorrow. Please confirm IMMEDIATELY.",
+      sent_at: "2026-04-13T16:45:00Z",
+      escalation_required: true
+    }
+  ]
+};
+
+
 function CommunicationStateBadge({ state }) {
   const config = {
     pending: {
@@ -56,14 +89,38 @@ function CommunicationStateBadge({ state }) {
   )
 }
 
-// Format a timestamp to h:mm AM/PM
+// Format a timestamp to h:mm AM/PM (with date if not today)
 const formatTime = (timestamp) => {
   if (!timestamp) return '';
   const date = new Date(timestamp);
-  return date.toLocaleTimeString('en-US', {
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+
+  const timeStr = date.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+  });
+
+  if (isToday) return timeStr;
+
+  return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${timeStr}`;
+};
+
+const formatDateLabel = (dateStr) => {
+  const d = new Date(dateStr);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return 'Today';
+  
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+  return d.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
   });
 };
 
@@ -79,7 +136,11 @@ const formatDeliveryDate = (dateStr) => {
 
 // ── Compass opening message (pinned top of every chat) ──────────────────────
 const CompassOpeningMessage = ({ vendor }) => {
-  if (!vendor) return null;
+  if (!vendor || !vendor.pos) return null;
+
+  // Format the PO numbers: "PO-123, PO-456"
+  const poListStr = vendor.pos.map(p => p.po_num).join(', ');
+
   return (
     <div className="compass-opening-wrap" style={{ marginBottom: '24px' }}>
       <div className="compass-opening-inner">
@@ -102,9 +163,14 @@ const CompassOpeningMessage = ({ vendor }) => {
             <div className="compass-bubble-body">
               <p>Hi there! 👋 I'm your <strong>Compass</strong> procurement assistant.</p>
               <p style={{ marginTop: '8px' }}>
-                I'm tracking the deliveries for <strong>{vendor.vendor_name}</strong>.
+                I'm tracking the deliveries for <strong>{vendor.vendor_name}</strong> 
+                {vendor.pos.length > 1 ? (
+                  <> across multiple orders: <strong>{poListStr}</strong>.</>
+                ) : (
+                  <> regarding order: <strong>{vendor.pos[0]?.po_num}</strong>.</>
+                )}
               </p>
-              <p style={{ marginTop: '8px' }}>Will you be able to deliver your scheduled orders on time? ✅</p>
+              <p style={{ marginTop: '8px' }}>Will you be able to deliver these on time? ✅</p>
             </div>
             <p className="compass-bubble-time">System Message</p>
           </div>
@@ -144,9 +210,9 @@ const ChatBubble = ({ message }) => {
     return (
       <>
         <div className="flex items-start gap-4 flex-row-reverse">
-          <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 text-white font-bold text-[10px]">SC</div>
+          <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 text-white font-bold text-[10px]">RK</div>
           <div className="flex flex-col items-end gap-1 max-w-[70%]">
-            <span className="text-[10px] font-bold text-primary mr-2 uppercase">Sarah (Operator)</span>
+            <span className="text-[10px] font-bold text-primary mr-2 uppercase">Ramesh Kumar (Admin)</span>
             <div className="p-4 bg-white border border-outline-variant/30 rounded-2xl rounded-tr-none shadow-sm text-sm leading-relaxed text-on-surface">
               {message_text}
             </div>
@@ -263,7 +329,12 @@ const Chats = () => {
           }
         });
         
-        const vendorList = Object.values(vendors);
+        const vendorList = Object.values(vendors).map(v => {
+          if (v.vendor_name === YASHODA_MOCK_DATA.vendor_name) {
+            return { ...v, ...YASHODA_MOCK_DATA };
+          }
+          return v;
+        });
         setVendorData(vendorList);
 
         // Fetch chat messages for all vendors
@@ -825,19 +896,30 @@ const Chats = () => {
                   {/* ── Compass opening message (pinned top) ── */}
                   <CompassOpeningMessage vendor={selectedVendor} />
 
-                  <div className="flex justify-center">
-                    <span className="px-4 py-1 bg-surface-container-low rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Today</span>
-                  </div>
-
-                  {chatMessages.length === 0 && !chatLoading && (
-                    <div className="flex justify-center py-12">
-                      <p className="text-sm text-on-surface-variant/60 italic">No messages yet. The conversation will appear here once the vendor responds.</p>
-                    </div>
-                  )}
-
-                  {chatMessages.map((msg) => (
-                    <ChatBubble key={msg.id} message={msg} />
-                  ))}
+                  {/* ── Chat Messages with Date Dividers ── */}
+                  {(() => {
+                    const messages = selectedVendor.messages || chatMessages;
+                    let lastDate = null;
+                    
+                    return messages.map((msg) => {
+                      const msgDate = new Date(msg.sent_at).toDateString();
+                      const showDivider = msgDate !== lastDate;
+                      lastDate = msgDate;
+                      
+                      return (
+                        <React.Fragment key={msg.id}>
+                          {showDivider && (
+                            <div className="flex justify-center my-6">
+                              <span className="px-4 py-1 bg-surface-container-low rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+                                {formatDateLabel(msg.sent_at)}
+                              </span>
+                            </div>
+                          )}
+                          <ChatBubble message={msg} />
+                        </React.Fragment>
+                      );
+                    });
+                  })()}
 
                   {/* Auto-scroll anchor */}
                   <div ref={messagesEndRef} />
@@ -916,13 +998,14 @@ const Chats = () => {
                     <div className="flex flex-wrap gap-2">
                        {selectedVendor.pos.map(p => (
                          <span key={p.po_num} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg border border-slate-200">
-                           #{p.po_num}
+                           {p.po_num}
                          </span>
                        ))}
                     </div>
                   </div>
                 </div>
               </div>
+
 
               <div className="p-6 flex flex-col gap-3">
                 <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Operator Controls</h3>
