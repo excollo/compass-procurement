@@ -262,7 +262,7 @@ const Dashboard = () => {
       const { count: vendorCount } = await supabase
         .from('vendor_master').select('vendor', { count: 'exact', head: true });
 
-      setKpis({ totalPOs: seen.size, openPOs: openCount, totalVendors: vendorCount ?? 0, activeChats: 5, dueToday: dueCount, overdue: overdueCount });
+      setKpis({ totalPOs: seen.size, openPOs: openCount, totalVendors: vendorCount ?? 0, activeChats: 8, dueToday: dueCount, overdue: overdueCount });
     } catch (err) { console.error('KPI fetch', err); }
   }, []); // eslint-disable-line
 
