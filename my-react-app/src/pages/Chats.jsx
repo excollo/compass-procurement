@@ -226,7 +226,7 @@ const Chats = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Fetch chat messages for selected Vendor using the custom hook
+  // Fetch chat messages for selected vendor using the custom hook
   const {
     messages: chatMessages,
     loading: chatLoading,
@@ -247,37 +247,42 @@ const Chats = () => {
         .select('*');
 
       if (!error && data) {
-        // Group by unique vendor (phone is our key for chat threads)
+        // Group by vendor name
         const vendors = {};
         data.forEach(item => {
-          const phone = item.vendor_phone || 'no-phone';
-          if (!vendors[phone]) {
-            vendors[phone] = {
-              vendor_name: item.vendor_name || 'Unknown Vendor',
-              vendor_phone: phone,
+          const vendorName = item.vendor_name || 'Unknown Vendor';
+          if (!vendors[vendorName]) {
+            vendors[vendorName] = {
+              vendor_name: vendorName,
+              vendor_phone: item.vendor_phone || '',
               vendor_code: item.vendor_code,
-              pos: []
+              pos: [item]
             };
+          } else {
+            vendors[vendorName].pos.push(item);
           }
-          vendors[phone].pos.push(item);
         });
         
         const vendorList = Object.values(vendors);
         setVendorData(vendorList);
 
-        // Fetch chat messages for all vendors to populate sidebar previews
-        const phones = vendorList.map(v => v.vendor_phone);
+        // Fetch chat messages for all vendors
+        const vendorNames = vendorList.map(v => v.vendor_name);
 
         const { data: allMessages } = await supabase
           .from('chat_history')
           .select('vendor_phone, sender_type, sent_at, communication_state')
-          .in('vendor_phone', phones)
+          .in('vendor_phone', vendorNames.map(name => 
+            vendorList.find(v => v.vendor_name === name)?.vendor_phone
+          ).filter(Boolean))
           .order('sent_at', { ascending: true });
 
         const grouped = {};
         allMessages?.forEach(msg => {
-          if (!grouped[msg.vendor_phone]) grouped[msg.vendor_phone] = [];
-          grouped[msg.vendor_phone].push(msg);
+          const vendor = vendorList.find(v => v.vendor_phone === msg.vendor_phone);
+          const vendorName = vendor?.vendor_name || 'Unknown';
+          if (!grouped[vendorName]) grouped[vendorName] = [];
+          grouped[vendorName].push(msg);
         });
 
         setMessagesByVendor(grouped);
@@ -334,10 +339,12 @@ const Chats = () => {
         (payload) => {
           const msg = payload.new;
           setMessagesByVendor(prev => {
-            const current = prev[msg.vendor_phone] || [];
+            const vendor = vendorData.find(v => v.vendor_phone === msg.vendor_phone);
+            const vendorName = vendor?.vendor_name || 'Unknown';
+            const current = prev[vendorName] || [];
             return {
               ...prev,
-              [msg.vendor_phone]: [...current, msg]
+              [vendorName]: [...current, msg]
             };
           });
         }
@@ -376,28 +383,33 @@ const Chats = () => {
   // Real-time thread_state subscription
   useEffect(() => {
     if (!selectedVendor?.pos?.length) return;
-    const mainPo = selectedVendor.pos[0].po_num;
-
-    const channel = supabase
-      .channel(`thread-state-${mainPo}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'selected_open_po_line_items',
-          filter: `po_num=eq.${mainPo}`
-        },
-        (payload) => {
-          if (payload.new.thread_state) {
-            setThreadState(payload.new.thread_state);
+    
+    const channels = [];
+    
+    selectedVendor.pos.forEach(po => {
+      const channel = supabase
+        .channel(`thread-state-${po.po_num}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'selected_open_po_line_items',
+            filter: `po_num=eq.${po.po_num}`
+          },
+          (payload) => {
+            if (payload.new.thread_state) {
+              setThreadState(payload.new.thread_state);
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+      
+      channels.push(channel);
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      channels.forEach(ch => supabase.removeChannel(ch));
     };
   }, [selectedVendor?.vendor_phone]);
 
@@ -531,7 +543,7 @@ const Chats = () => {
   useEffect(() => {
     const checkBreaches = () => {
       vendorData.forEach(vendor => {
-        const messages = messagesByVendor[vendor.vendor_phone] || [];
+        const messages = messagesByVendor[vendor.vendor_name] || [];
         const sla = computeResponseSLA(messages, 0.5);
         if (sla && sla.breached) {
           // coordinate auto-escalation for the main active PO
@@ -549,8 +561,9 @@ const Chats = () => {
   useEffect(() => {
     if (!selectedVendor?.pos?.length) return;
     const mainPo = selectedVendor.pos[0];
+    const vendorName = selectedVendor.vendor_name;
 
-    const messages = messagesByVendor[selectedVendor.vendor_phone] || [];
+    const messages = messagesByVendor[vendorName] || [];
     const latestBotMsg = [...messages].reverse().find(m => m.sender_type === 'bot' || m.sender_type === 'assistant');
 
     if (latestBotMsg && latestBotMsg.escalate === true && threadState !== 'escalated') {
@@ -622,10 +635,11 @@ const Chats = () => {
             {loading ? (
               <div className="p-4 text-center text-on-surface-variant text-sm font-bold">Loading chats...</div>
             ) : vendorData.map((vendor) => {
-              const isActive = selectedVendor?.vendor_phone === vendor.vendor_phone;
+              const vendorName = vendor.vendor_name;
+              const isActive = selectedVendor?.vendor_name === vendorName;
               return (
                 <div
-                  key={vendor.vendor_phone}
+                  key={vendorName}
                   onClick={() => setSelectedVendor(vendor)}
                   className={`p-4 rounded-xl cursor-pointer transition-all ${isActive
                     ? 'bg-surface-container-lowest border-l-4 border-primary shadow-sm group'
@@ -648,12 +662,12 @@ const Chats = () => {
 
                     {/* left: communication state */}
                     <CommunicationStateBadge
-                      state={getLatestCommunicationState(messagesByVendor[vendor.vendor_phone] || [])}
+                      state={getLatestCommunicationState(messagesByVendor[vendorName] || [])}
                     />
 
                     {/* right: SLA timer — only show if vendor hasn't replied yet */}
                     {(() => {
-                      const sla = computeResponseSLA(messagesByVendor[vendor.vendor_phone] || [], 0.5)
+                      const sla = computeResponseSLA(messagesByVendor[vendorName] || [], 0.5)
                       if (!sla) return null
 
                       const color = sla.color === 'red'
