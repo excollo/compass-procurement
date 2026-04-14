@@ -53,63 +53,6 @@ const ETD_COLOR = (dateStr) => {
   return 'text-emerald-500 font-medium';
 };
 
-/* ─── Fixed PO list ────────────────────────────────────── */
-const FIXED_POS = ['4100259330', '4100260294', '4100260367', '4100260584', '4100260654'];
-
-/* ─── Dummy escalation rows (distinct from FIXED_POS) ──────── */
-const DUMMY_ESCALATIONS = [
-  {
-    id: 'dum-1', po_num: '4100261001', vendor_code: 'VND-082', vendor_name: 'Apex Manufacturing', spoc: 'Priya Sharma',
-    message_text: 'Material not available at source warehouse',
-    delivery_date: '2026-04-09', created_at: '2026-04-07T05:14:00Z', escalation: true,
-  },
-  {
-    id: 'dum-2', po_num: '4100261088', vendor_code: 'VND-115', vendor_name: 'Global Logistics', spoc: 'Priya Sharma',
-    message_text: 'Shipment delayed due to port congestion',
-    delivery_date: '2026-04-07', created_at: '2026-04-07T04:52:00Z', escalation: true,
-  },
-  {
-    id: 'dum-3', po_num: '4100261173', vendor_code: 'VND-034', vendor_name: 'TechFlow Corp', spoc: 'Priya Sharma',
-    message_text: 'Partial quantity dispatched, balance pending',
-    delivery_date: '2026-04-10', created_at: '2026-04-07T03:30:00Z', escalation: true,
-  },
-  {
-    id: 'dum-4', po_num: '4100261240', vendor_code: 'VND-209', vendor_name: 'Nexus Materials', spoc: 'Priya Sharma',
-    message_text: 'Quality inspection failed, re-work in progress',
-    delivery_date: '2026-04-08', created_at: '2026-04-06T22:10:00Z', escalation: true,
-  },
-  {
-    id: 'dum-5', po_num: '4100261319', vendor_code: 'VND-057', vendor_name: 'Summit Supply', spoc: 'Priya Sharma',
-    message_text: 'Vendor requesting delivery date extension by 3 days',
-    delivery_date: '2026-04-12', created_at: '2026-04-06T18:45:00Z', escalation: true,
-  },
-  {
-    id: 'dum-6', po_num: '4100261402', vendor_code: 'VND-143', vendor_name: 'Prime Industrial', spoc: 'Priya Sharma',
-    message_text: 'Raw material price revision — approval needed',
-    delivery_date: '2026-04-11', created_at: '2026-04-06T15:20:00Z', escalation: true,
-  },
-  {
-    id: 'dum-7', po_num: '4100261475', vendor_code: 'VND-061', vendor_name: 'Continental Cargo', spoc: 'Priya Sharma',
-    message_text: 'Truck breakdown on highway, ETA uncertain',
-    delivery_date: '2026-04-07', created_at: '2026-04-06T12:05:00Z', escalation: true,
-  },
-  {
-    id: 'dum-8', po_num: '4100261530', vendor_code: 'VND-198', vendor_name: 'Swift Shipping', spoc: 'Priya Sharma',
-    message_text: 'Custom duty hold at port of entry',
-    delivery_date: '2026-04-13', created_at: '2026-04-06T09:40:00Z', escalation: true,
-  },
-  {
-    id: 'dum-9', po_num: '4100261612', vendor_code: 'VND-022', vendor_name: 'Echo Packaging', spoc: 'Priya Sharma',
-    message_text: 'Packing list mismatch with invoice — rejected at gate',
-    delivery_date: '2026-04-08', created_at: '2026-04-06T07:15:00Z', escalation: true,
-  },
-  {
-    id: 'dum-10', po_num: '4100261700', vendor_code: 'VND-174', vendor_name: 'Vanguard Co', spoc: 'Priya Sharma',
-    message_text: 'Labour strike at vendor facility, production halted',
-    delivery_date: '2026-04-14', created_at: '2026-04-05T20:30:00Z', escalation: true,
-  },
-];
-
 /* ─── KPI cards ─────────────────────────────────────────── */
 
 const VendorKpiCard = ({ value }) => (
@@ -315,12 +258,11 @@ const Dashboard = () => {
         ...row,
         message_text: row.reason_detail || row.escalation_reason || '—'
       }));
-      // Merge real data with dummy rows (dummy rows always appended)
-      setEscalations([...real, ...DUMMY_ESCALATIONS]);
+      setEscalations(real);
       setEscPage(1);
     } catch (err) {
       console.error('Escalations fetch', err);
-      setEscalations([...DUMMY_ESCALATIONS]);
+      setEscalations([]);
     } finally { setEscalLoading(false); }
   }, []); // eslint-disable-line
 
@@ -565,7 +507,7 @@ const Dashboard = () => {
                               </div>
                             </td>
                             <td className="px-6 py-3.5 whitespace-nowrap min-w-[100px]">
-                               <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{row.spoc || 'Priya Sharma'}</span>
+                               <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{row.spoc || '—'}</span>
                             </td>
                             <td className={`px-6 py-3.5 text-[10px] font-bold whitespace-nowrap ${ETD_COLOR(row.delivery_date)}`}>{fmtDate(row.delivery_date)}</td>
                             <td className="px-6 py-3.5 min-w-[180px]">
