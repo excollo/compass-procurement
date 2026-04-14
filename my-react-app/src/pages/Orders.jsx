@@ -7,25 +7,44 @@ import { useSLATimer } from '../hooks/useSLATimer';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
+  
+  // Handle ISO/YYYY-MM-DD format directly (most reliable)
+  const isoMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+  }
+
+  // Handle DD-MM-YYYY or DD/MM/YYYY format
+  const dmy = String(dateStr).match(/^(\d{2})[\-\/](\d{2})[\-\/](\d{4})/);
+  if (dmy) {
+    return `${dmy[1]}/${dmy[2]}/${dmy[3]}`;
+  }
+
+  // Fallback: try native date parse
   const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
-  const DD = String(d.getDate()).padStart(2, '0');
-  const MM = String(d.getMonth() + 1).padStart(2, '0');
-  const YYYY = d.getFullYear();
-  return `${DD}/${MM}/${YYYY}`;
+  if (!isNaN(d)) {
+    const DD = String(d.getDate()).padStart(2, '0');
+    const MM = String(d.getMonth() + 1).padStart(2, '0');
+    const YYYY = d.getFullYear();
+    return `${DD}/${MM}/${YYYY}`;
+  }
+
+  return dateStr;
 };
 
 const convertToInputDate = (dateStr) => {
   if (!dateStr) return '';
-  const normalized = dateStr.replace(/[\.\/]/g, '-');
-  const parts = normalized.split('-');
-  if (parts.length === 3 && parts[2].length === 4) {
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-  }
-  const d = new Date(normalized);
-  if (!isNaN(d)) {
-    return d.toISOString().split('T')[0];
-  }
+
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+
+  // DD-MM-YYYY or DD/MM/YYYY → YYYY-MM-DD
+  const dmy = String(dateStr).match(/^(\d{2})[\-\/](\d{2})[\-\/](\d{4})/);
+  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+
+  const d = new Date(dateStr);
+  if (!isNaN(d)) return d.toISOString().split('T')[0];
+
   return '';
 };
 
@@ -558,22 +577,30 @@ const Orders = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="relative flex items-center gap-2 group/date max-w-fit cursor-pointer">
-                              <span className={`text-xs font-black italic ${etdColor} z-10 group-hover/date:underline`}>
+                            <div className="relative flex items-center gap-2 group/date max-w-fit">
+                              <span className={`text-xs font-black italic ${etdColor}`}>
                                 {formatDate(displayDate)}
                               </span>
-                              <input 
+                              <input
+                                id={`date-input-${po.po_num}`}
                                 type="date"
                                 value={convertToInputDate(displayDate)}
                                 onChange={(e) => handleLocalChange(po.po_num, 'delivery_date', e.target.value)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                                className="absolute left-0 top-0 w-full h-full opacity-0 cursor-pointer"
+                                style={{ zIndex: 10 }}
                               />
-                              <span className="material-symbols-outlined text-sm text-slate-300 group-hover/date:text-primary transition-colors cursor-pointer" onClick={(e) => {
-                                e.stopPropagation();
-                                const input = e.currentTarget.parentElement.querySelector('input');
-                                if (input.showPicker) input.showPicker();
-                              }}>calendar_month</span>
+                              <span
+                                className="material-symbols-outlined text-sm text-slate-300 group-hover/date:text-primary transition-colors cursor-pointer"
+                                style={{ zIndex: 20, position: 'relative' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const input = document.getElementById(`date-input-${po.po_num}`);
+                                  if (input) {
+                                    try { input.showPicker(); } catch { input.click(); }
+                                  }
+                                }}
+                              >calendar_month</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
@@ -691,8 +718,8 @@ const Orders = () => {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .font-headline { font-family: 'Outfit', sans-serif; }
         input[type="date"]::-webkit-calendar-picker-indicator {
-          display: none;
-          -webkit-appearance: none;
+          cursor: pointer;
+          opacity: 0.5;
         }
       `}} />
     </div>
