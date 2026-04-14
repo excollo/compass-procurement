@@ -193,7 +193,7 @@ const ChatBubble = ({ message }) => {
             V
           </div>
           <div className="flex flex-col gap-1 max-w-[70%]">
-            <span className="text-[10px] font-bold text-on-surface-variant ml-2 uppercase">Vendor Rep</span>
+            <span className="text-[10px] font-bold text-on-surface-variant ml-2 uppercase">Vendor</span>
             <div className="p-4 bg-primary text-white rounded-2xl rounded-tl-none shadow-md shadow-primary/10 text-sm leading-relaxed">
               {message_text}
             </div>
@@ -232,7 +232,7 @@ const ChatBubble = ({ message }) => {
           <span className="material-symbols-outlined text-sm text-on-surface-variant">smart_toy</span>
         </div>
         <div className="flex flex-col items-end gap-1 max-w-[70%]">
-          <span className="text-[10px] font-bold text-on-surface-variant mr-2 uppercase">Architect Bot</span>
+          <span className="text-[10px] font-bold text-on-surface-variant mr-2 uppercase">Bot</span>
           <div className="p-4 bg-white/60 border border-outline-variant/30 backdrop-blur-md rounded-2xl rounded-tr-none shadow-sm text-sm leading-relaxed">
             {message_text}
           </div>
