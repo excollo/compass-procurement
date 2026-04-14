@@ -74,16 +74,12 @@ const formatDeliveryDate = (dateStr) => {
   const DD = String(d.getDate()).padStart(2, '0');
   const MM = String(d.getMonth() + 1).padStart(2, '0');
   const YYYY = d.getFullYear();
-  return `${DD}/${MM}/${YYYY}`;
+  return `${DD} ${MM} ${YYYY}`;
 };
 
 // ── Compass opening message (pinned top of every chat) ──────────────────────
 const CompassOpeningMessage = ({ vendor }) => {
-  if (!vendor || !vendor.pos) return null;
-
-  // Format the PO numbers: "PO-123, PO-456"
-  const poListStr = vendor.pos.map(p => `#${p.po_num}`).join(', ');
-
+  if (!vendor) return null;
   return (
     <div className="compass-opening-wrap" style={{ marginBottom: '24px' }}>
       <div className="compass-opening-inner">
@@ -106,14 +102,9 @@ const CompassOpeningMessage = ({ vendor }) => {
             <div className="compass-bubble-body">
               <p>Hi there! 👋 I'm your <strong>Compass</strong> procurement assistant.</p>
               <p style={{ marginTop: '8px' }}>
-                I'm tracking the deliveries for <strong>{vendor.vendor_name}</strong> 
-                {vendor.pos.length > 1 ? (
-                  <> across multiple orders: <strong>{poListStr}</strong>.</>
-                ) : (
-                  <> regarding order: <strong>#{vendor.pos[0]?.po_num}</strong>.</>
-                )}
+                I'm tracking the deliveries for <strong>{vendor.vendor_name}</strong>.
               </p>
-              <p style={{ marginTop: '8px' }}>Will you be able to deliver these on time? ✅</p>
+              <p style={{ marginTop: '8px' }}>Will you be able to deliver your scheduled orders on time? ✅</p>
             </div>
             <p className="compass-bubble-time">System Message</p>
           </div>
@@ -729,14 +720,7 @@ const Chats = () => {
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-on-surface">
-                      {selectedVendor.vendor_name}
-                      {searchParams.get('po') && (
-                        <span className="ml-2 text-[10px] font-medium text-on-surface-variant bg-surface-variant px-1.5 py-0.5 rounded">
-                          PO-{searchParams.get('po')}
-                        </span>
-                      )}
-                    </h2>
+                    <h2 className="text-sm font-bold text-on-surface">{selectedVendor.vendor_name}</h2>
                     <div className="flex items-center gap-1.5">
                       <span className={`w-2 h-2 rounded-full ${threadState === 'human_controlled' ? 'bg-blue-500' : 'bg-primary'}`}></span>
                       <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
@@ -746,54 +730,46 @@ const Chats = () => {
                   </div>
                 </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-xs font-black text-slate-800">Ramesh Kumar</p>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider">Admin</p>
-                    </div>
-                    <img alt="User profile" className="w-8 h-8 rounded-full border-2 border-slate-200 shadow-sm"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8ov37m6Ru1jtLXavUm2Wv7-q8IqttbDcSU5OJzUCKT6ZmPdV8o10Gkm2bzBBlUkUAfR7nPEInOWhBPKK0JB-n56VPQC2sJvCZVr9a9eqzujzWSusoB7Pqo3Zl5PSfDCMpzoPbo0JZh5CHcjqc7lATQ1qKELXGJ7WeD5DB3SN3FaTJ4H9VBzP_Fvv51A3UPXtSYL_rtKoK2k8LRfiEklf60DY9c3Hul2Ue3yIjaHQmSa85wLfALExg-6xFvgM8lPDR6WQOIutN4I6d" />
-                    <div
-                      onClick={() => navigate('/notifications')}
-                      style={{
-                        position: 'relative',
-                        cursor: 'pointer',
-                        padding: '6px',
-                        borderRadius: '6px',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                      className="hover:bg-slate-50 transition-colors"
-                    >
-                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
-                        style={{ color: '#6B7280' }}>
-                        <path d="M9 2a5 5 0 015 5v3l1.5 2H2.5L4 10V7a5 5 0 015-5z"
-                          stroke="currentColor" strokeWidth="1.3"/>
-                        <path d="M7 14.5a2 2 0 004 0"
-                          stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                      </svg>
-                      {unreadCount > 0 && (
-                        <span style={{
-                          position: 'absolute',
-                          top: '2px',
-                          right: '2px',
-                          background: '#DC2626',
-                          color: '#fff',
-                          fontSize: '9px',
-                          fontWeight: 700,
-                          minWidth: '14px',
-                          height: '14px',
-                          borderRadius: '7px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '0 3px'
-                        }}>
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                <div
+                  onClick={() => navigate('/notifications')}
+                  style={{
+                    position: 'relative',
+                    cursor: 'pointer',
+                    padding: '6px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  className="hover:bg-slate-50 transition-colors"
+                >
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
+                    style={{ color: '#6B7280' }}>
+                    <path d="M9 2a5 5 0 015 5v3l1.5 2H2.5L4 10V7a5 5 0 015-5z"
+                      stroke="currentColor" strokeWidth="1.3"/>
+                    <path d="M7 14.5a2 2 0 004 0"
+                      stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '2px',
+                      right: '2px',
+                      background: '#DC2626',
+                      color: '#fff',
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      minWidth: '14px',
+                      height: '14px',
+                      borderRadius: '7px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 3px'
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </div>
               </header>
 
               {/* Chat messages area */}
