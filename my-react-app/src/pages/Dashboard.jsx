@@ -194,7 +194,7 @@ const Dashboard = () => {
   const [newEscalCount, setNewEscalCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [escPage, setEscPage] = useState(1);
-  const ESCAL_PER_PAGE = 5;
+  const ESCAL_PER_PAGE = 6;
 
   /* KPIs */
   const [kpis, setKpis] = useState({
@@ -495,7 +495,7 @@ const Dashboard = () => {
 
               {/* ── Escalations table ── */}
               <div
-                className="xl:col-span-3 rounded-[var(--radius-card-lg)] overflow-hidden h-full flex flex-col"
+                className="xl:col-span-3 rounded-[var(--radius-card-lg)] overflow-hidden h-full flex flex-col justify-between"
                 style={{
                   background: 'var(--color-surface)',
                   boxShadow: 'var(--shadow-card)',
@@ -607,7 +607,7 @@ const Dashboard = () => {
 
               {/* ── Recent Conversations panel ── */}
               <div
-                className="xl:col-span-1 rounded-[var(--radius-card-lg)] overflow-hidden h-full flex flex-col"
+                className="xl:col-span-1 rounded-[var(--radius-card-lg)] overflow-hidden h-full flex flex-col justify-between"
                 style={{
                   background: 'var(--color-surface)',
                   boxShadow: 'var(--shadow-card)',
