@@ -56,6 +56,7 @@ const EscalationDetail = () => {
   const [saving, setSaving] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [noteText, setNoteText] = useState('');
+  const [vendorMessage, setVendorMessage] = useState(null);
 
   const fetchEscalation = useCallback(async () => {
     try {
@@ -69,6 +70,21 @@ const EscalationDetail = () => {
       setEscalation(data);
       setSelectedStatus(data.po_status);
       setNoteText(data.resolution_note || '');
+
+      // Fetch the last vendor message on this PO that caused the escalation
+      if (data?.po_num) {
+        const { data: msgs } = await supabase
+          .from('chat_history')
+          .select('message_text, sent_at')
+          .eq('po_num', data.po_num)
+          .eq('sender_type', 'vendor')
+          .lte('sent_at', data.escalation_created_at || new Date().toISOString())
+          .order('sent_at', { ascending: false })
+          .limit(1);
+        if (msgs && msgs.length > 0) {
+          setVendorMessage(msgs[0].message_text);
+        }
+      }
     } catch (err) {
       console.error('Error fetching escalation:', err);
     } finally {
@@ -352,9 +368,14 @@ const EscalationDetail = () => {
         color: 'blue'
       });
     } else {
+      const reasonLabel = REASON_LABELS[escalation.escalation_reason]
+        || escalation.category
+        || 'an exception';
       events.push({
         actor: 'VENDOR',
-        text: `Vendor replied with ${REASON_LABELS[escalation.escalation_reason]}`,
+        text: vendorMessage
+          ? `Vendor replied: "${vendorMessage}"`
+          : `Vendor replied — ${reasonLabel}`,
         time: lastBotAt,
         color: 'green'
       });
