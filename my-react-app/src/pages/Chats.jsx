@@ -313,27 +313,107 @@ const Chats = () => {
         .select('*');
 
       if (!error && data) {
-        // Group by vendor name
+        const poNums = [...new Set(data.map(item => item.po_num).filter(Boolean))];
+        let normalizedRows = data;
+
+        if (poNums.length > 0) {
+          const { data: canonicalRows, error: canonicalError } = await supabase
+            .from('open_po_detail')
+            .select('po_num, vendor_name, vendor_code')
+            .in('po_num', poNums);
+
+          if (!canonicalError && canonicalRows?.length) {
+            const canonicalByPo = {};
+            canonicalRows.forEach(row => {
+              if (!row?.po_num) return;
+              const existing = canonicalByPo[row.po_num] || {};
+              canonicalByPo[row.po_num] = {
+                po_num: row.po_num,
+                vendor_name: existing.vendor_name || row.vendor_name || '',
+                vendor_code: existing.vendor_code || row.vendor_code || ''
+              };
+            });
+
+            // Build a best-effort phone lookup by vendor from selected table itself.
+            const phoneByVendorKey = {};
+            data.forEach(item => {
+              const key = `${item.vendor_name || ''}__${item.vendor_code || ''}`;
+              if (!phoneByVendorKey[key] && item.vendor_phone) {
+                phoneByVendorKey[key] = item.vendor_phone;
+              }
+            });
+
+            const pendingPoFixes = {};
+            normalizedRows = data.map(item => {
+              const canonical = canonicalByPo[item.po_num];
+              if (!canonical) return item;
+
+              const canonicalVendorKey = `${canonical.vendor_name || ''}__${canonical.vendor_code || ''}`;
+              const inferredPhone = phoneByVendorKey[canonicalVendorKey] || item.vendor_phone;
+
+              const normalized = {
+                ...item,
+                vendor_name: canonical.vendor_name || item.vendor_name,
+                vendor_code: canonical.vendor_code || item.vendor_code,
+                vendor_phone: inferredPhone
+              };
+
+              const needsFix =
+                (canonical.vendor_name && canonical.vendor_name !== item.vendor_name) ||
+                (canonical.vendor_code && canonical.vendor_code !== item.vendor_code) ||
+                (inferredPhone && inferredPhone !== item.vendor_phone);
+
+              if (needsFix && item.po_num) {
+                pendingPoFixes[item.po_num] = {
+                  vendor_name: normalized.vendor_name,
+                  vendor_code: normalized.vendor_code,
+                  vendor_phone: normalized.vendor_phone
+                };
+              }
+
+              return normalized;
+            });
+
+            const fixEntries = Object.entries(pendingPoFixes);
+            if (fixEntries.length > 0) {
+              await Promise.all(
+                fixEntries.map(([po_num, patch]) =>
+                  supabase
+                    .from('selected_open_po_line_items')
+                    .update(patch)
+                    .eq('po_num', po_num)
+                )
+              );
+            }
+          }
+        }
+
+        // Group by vendor name and dedupe by PO number
         const vendors = {};
-        data.forEach(item => {
+        normalizedRows.forEach(item => {
           const vendorName = item.vendor_name || 'Unknown Vendor';
           if (!vendors[vendorName]) {
             vendors[vendorName] = {
               vendor_name: vendorName,
               vendor_phone: item.vendor_phone || '',
               vendor_code: item.vendor_code,
-              pos: [item]
+              pos: [],
+              _seenPos: new Set()
             };
-          } else {
+          }
+
+          if (!vendors[vendorName]._seenPos.has(item.po_num)) {
             vendors[vendorName].pos.push(item);
+            vendors[vendorName]._seenPos.add(item.po_num);
           }
         });
         
         const vendorList = Object.values(vendors).map(v => {
+          const { _seenPos, ...vendor } = v;
           if (v.vendor_name === YASHODA_MOCK_DATA.vendor_name) {
-            return { ...v, ...YASHODA_MOCK_DATA };
+            return { ...vendor, ...YASHODA_MOCK_DATA };
           }
-          return v;
+          return vendor;
         });
         setVendorData(vendorList);
 
