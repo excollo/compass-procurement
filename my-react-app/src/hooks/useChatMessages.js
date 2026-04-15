@@ -4,14 +4,18 @@ import { supabase } from '../lib/supabase';
 /**
  * Custom hook to fetch and subscribe to real-time chat messages for a Vendor.
  */
-export default function useChatMessages(vendorPhone) {
+export default function useChatMessages(vendorPhone, poNums = []) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const channelRef = useRef(null);
 
   useEffect(() => {
-    if (!vendorPhone) {
+    const uniquePoNums = [...new Set((poNums || []).filter(Boolean))];
+    const hasPhone = Boolean(vendorPhone);
+    const hasPos = uniquePoNums.length > 0;
+
+    if (!hasPhone && !hasPos) {
       setMessages([]);
       setLoading(false);
       return;
@@ -32,11 +36,20 @@ export default function useChatMessages(vendorPhone) {
 
     // Fetch existing messages
     const fetchMessages = async () => {
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('chat_history')
         .select('*')
-        .eq('vendor_phone', vendorPhone)
         .order('sent_at', { ascending: true });
+
+      if (hasPhone && hasPos) {
+        query = query.or(`vendor_phone.eq.${vendorPhone},po_num.in.(${uniquePoNums.join(',')})`);
+      } else if (hasPhone) {
+        query = query.eq('vendor_phone', vendorPhone);
+      } else {
+        query = query.in('po_num', uniquePoNums);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (cancelled) return;
 
@@ -47,7 +60,18 @@ export default function useChatMessages(vendorPhone) {
         return;
       }
 
-      setMessages(data || []);
+      // De-dup rows when both phone and po_num clauses match.
+      const deduped = [];
+      const seen = new Set();
+      (data || []).forEach((row) => {
+        const key = row.id || `${row.sent_at || ''}-${row.sender_type || ''}-${row.message_text || ''}-${row.po_num || ''}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(row);
+        }
+      });
+
+      setMessages(deduped);
       setLoading(false);
     };
 
@@ -55,17 +79,27 @@ export default function useChatMessages(vendorPhone) {
 
     // Subscribe to realtime INSERT events
     const channel = supabase
-      .channel(`vendor-chat-${vendorPhone}`)
+      .channel(`vendor-chat-${vendorPhone || 'po-only'}-${uniquePoNums.join('_') || 'none'}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'chat_history',
-          filter: `vendor_phone=eq.${vendorPhone}`,
+          filter: hasPhone ? `vendor_phone=eq.${vendorPhone}` : undefined,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
+          const row = payload.new;
+          const phoneMatch = hasPhone && row.vendor_phone === vendorPhone;
+          const poMatch = hasPos && uniquePoNums.includes(row.po_num);
+          if (!phoneMatch && !poMatch) return;
+
+          setMessages((prev) => {
+            const key = row.id || `${row.sent_at || ''}-${row.sender_type || ''}-${row.message_text || ''}-${row.po_num || ''}`;
+            const exists = prev.some((m) => (m.id ? m.id === row.id : `${m.sent_at || ''}-${m.sender_type || ''}-${m.message_text || ''}-${m.po_num || ''}` === key));
+            if (exists) return prev;
+            return [...prev, row];
+          });
         }
       )
       .subscribe();
@@ -80,7 +114,7 @@ export default function useChatMessages(vendorPhone) {
         channelRef.current = null;
       }
     };
-  }, [vendorPhone]);
+  }, [vendorPhone, JSON.stringify(poNums)]);
 
   return { messages, loading, error };
 }
