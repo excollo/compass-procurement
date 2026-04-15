@@ -297,7 +297,10 @@ const Chats = () => {
     messages: chatMessages,
     loading: chatLoading,
     error: chatError,
-  } = useChatMessages(selectedVendor?.vendor_phone);
+  } = useChatMessages(
+    selectedVendor?.vendor_phone,
+    selectedVendor?.pos?.map(p => p.po_num) || []
+  );
 
   // Auto scroll when messages change
   useEffect(() => {
