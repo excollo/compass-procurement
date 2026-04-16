@@ -5,7 +5,39 @@ import { supabase } from '../lib/supabase';
 
 /* ─── helpers ─────────────────────────────────────────── */
 const todayD = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const toLocalDateKey = (value) => {
+  if (!value) return null;
+  const raw = String(value).trim();
+
+  // Handles formats like "16.04.2026" or "16-04-2026"
+  const dmyMatch = raw.match(/^(\d{2})[.-](\d{2})[.-](\d{4})$/);
+  if (dmyMatch) {
+    const [, dd, mm, yyyy] = dmyMatch;
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // Handles already-normalized format "2026-04-16"
+  const ymdMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (ymdMatch) return raw;
+
+  const parsed = new Date(raw);
+  if (isNaN(parsed)) {
+    const direct = raw.slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(direct) ? direct : null;
+  }
+  const yyyy = parsed.getFullYear();
+  const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+  const dd = String(parsed.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 const fmtDate = (d) => {
   if (!d) return '—';
@@ -42,6 +74,23 @@ const CategoryBadge = ({ msg }) => {
 
   return <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border ${styles}`}>{cat}</span>;
 };
+
+const YASHODA_ESCALATION_MOCK = {
+  id: 'mock-yashoda-escalation-4100260367',
+  po_num: '4100260367',
+  vendor_name: 'Yashoda Gas Service',
+  vendor_code: '30005069',
+  delivery_date: '2026-04-14',
+  escalation_reason: 'no_response',
+  reason_detail: 'Bot detected high-risk delay after repeated reminders. Human operator action required.',
+  priority: 'critical',
+  status: 'open',
+  category: 'Communication',
+  spoc: 'Priya Sharma',
+  escalation_created_at: '2026-04-13T16:45:00Z',
+  message_text: 'No response'
+};
+const MOCK_ESCALATION_BADGE_OFFSET = 1;
 const ETD_COLOR = (dateStr) => {
   if (!dateStr) return 'text-slate-400';
   const etd = new Date(dateStr);
@@ -198,7 +247,7 @@ const Dashboard = () => {
                if (etd < tDate) overdueCount++;
             }
           }
-          if (row.delivery_date?.slice(0, 10) === todayIso) dueCount++;
+          if (toLocalDateKey(row.delivery_date) === todayIso) dueCount++;
         }
       }
 
@@ -258,7 +307,8 @@ const Dashboard = () => {
         ...row,
         message_text: row.reason_detail || row.escalation_reason || '—'
       }));
-      setEscalations(real);
+      const hasMock = real.some(row => row.po_num === YASHODA_ESCALATION_MOCK.po_num && row.status === 'open');
+      setEscalations(hasMock ? real : [YASHODA_ESCALATION_MOCK, ...real]);
       setEscPage(1);
     } catch (err) {
       console.error('Escalations fetch', err);
@@ -278,7 +328,7 @@ const Dashboard = () => {
         .from('escalations')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'open');
-      setUnreadCount(count || 0);
+      setUnreadCount((count || 0) + MOCK_ESCALATION_BADGE_OFFSET);
     };
     fetchCount();
   }, [fetchKPIs, fetchConvos, fetchEscalations]);
@@ -507,7 +557,7 @@ const Dashboard = () => {
                               </div>
                             </td>
                             <td className="px-6 py-3.5 whitespace-nowrap min-w-[100px]">
-                               <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{row.spoc || '—'}</span>
+                               <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>Priya Sharma</span>
                             </td>
                             <td className={`px-6 py-3.5 text-[10px] font-bold whitespace-nowrap ${ETD_COLOR(row.delivery_date)}`}>{fmtDate(row.delivery_date)}</td>
                             <td className="px-6 py-3.5 min-w-[180px]">
