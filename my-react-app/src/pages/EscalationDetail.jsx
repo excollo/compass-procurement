@@ -30,6 +30,58 @@ const PRIORITY_COLORS = {
   low: 'bg-slate-50 text-slate-600 border-slate-100'
 };
 
+const YASHODA_ESCALATION_MOCK_ID = 'mock-yashoda-escalation-4100260367';
+const YASHODA_ESCALATION_MOCK = {
+  id: YASHODA_ESCALATION_MOCK_ID,
+  po_num: '4100260367',
+  vendor_code: '30005069',
+  vendor_name: 'Yashoda Gas Service',
+  vendor_phone: '9680597120',
+  delivery_site: 'Jaipur Plant',
+  delivery_date: '2026-04-14',
+  document_date: '2026-04-07',
+  escalation_reason: 'no_response',
+  reason_detail: 'Bot detected high-risk delay after repeated reminders. Human operator action required.',
+  priority: 'critical',
+  status: 'open',
+  vendor_sla_applies: true,
+  vendor_sla_hours: 0.5,
+  operator_sla_hours: 2,
+  last_bot_message_at: '2026-04-13T16:45:00Z',
+  escalation_created_at: '2026-04-13T16:50:00Z',
+  category: 'Communication',
+  po_status: 'open',
+  fulfillment_rate: 100,
+  pending_lines: 0,
+  total_lines: 1,
+  ai_summary: '*Yashoda Gas Service* has not responded after repeated reminders for PO-4100260367. Escalation was auto-created and requires operator intervention.',
+  spoc_name: null,
+  spoc_first_action_at: null,
+  vendor_replied_at: null,
+  resolution_note: ''
+};
+
+const hydrateMockEscalationFromDb = async () => {
+  const { data: poRow } = await supabase
+    .from('selected_open_po_line_items')
+    .select('po_num, vendor_name, vendor_code, vendor_phone, delivery_site, delivery_date, doc_date, document_date')
+    .eq('po_num', YASHODA_ESCALATION_MOCK.po_num)
+    .limit(1)
+    .maybeSingle();
+
+  if (!poRow) return YASHODA_ESCALATION_MOCK;
+
+  return {
+    ...YASHODA_ESCALATION_MOCK,
+    vendor_name: poRow.vendor_name || YASHODA_ESCALATION_MOCK.vendor_name,
+    vendor_code: poRow.vendor_code || YASHODA_ESCALATION_MOCK.vendor_code,
+    vendor_phone: poRow.vendor_phone || YASHODA_ESCALATION_MOCK.vendor_phone,
+    delivery_site: poRow.delivery_site || YASHODA_ESCALATION_MOCK.delivery_site,
+    delivery_date: poRow.delivery_date || YASHODA_ESCALATION_MOCK.delivery_date,
+    document_date: poRow.document_date || poRow.doc_date || YASHODA_ESCALATION_MOCK.document_date
+  };
+};
+
 const formatElapsed = (ms) => {
   const totalMinutes = Math.floor(ms / 60000);
   const hours = Math.floor(totalMinutes / 60);
@@ -59,6 +111,16 @@ const EscalationDetail = () => {
   const [vendorMessage, setVendorMessage] = useState(null);
 
   const fetchEscalation = useCallback(async () => {
+    if (id === YASHODA_ESCALATION_MOCK_ID) {
+      const hydratedMock = await hydrateMockEscalationFromDb();
+      setEscalation(hydratedMock);
+      setSelectedStatus(hydratedMock.po_status);
+      setNoteText(hydratedMock.resolution_note || '');
+      setVendorMessage(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('escalations')
@@ -120,7 +182,7 @@ const EscalationDetail = () => {
           resolution_note: noteText,
           updated_at: new Date().toISOString(),
           spoc_first_action_at: escalation.spoc_first_action_at ?? new Date().toISOString(),
-          spoc_name: 'Ramesh Kumar'
+          spoc_name: 'Priya Sharma'
         })
         .eq('id', id);
 
