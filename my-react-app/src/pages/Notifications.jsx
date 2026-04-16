@@ -22,6 +22,21 @@ const REASON_LABELS = {
   other:            'Other',
 }
 
+const YASHODA_ESCALATION_MOCK = {
+  id: 'mock-yashoda-escalation-4100260367',
+  po_num: '4100260367',
+  vendor_name: 'Yashoda Gas Service',
+  vendor_code: '30005069',
+  escalation_reason: 'no_response',
+  reason_detail: 'Bot detected high-risk delay after repeated reminders. Human operator action required.',
+  category: 'Communication',
+  priority: 'critical',
+  status: 'open',
+  ai_summary: 'PO-4100260367 is escalated due to no vendor response after repeated reminders.',
+  escalation_created_at: '2026-04-13T16:50:00Z',
+  delivery_date: '2026-04-14'
+}
+
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
@@ -64,9 +79,11 @@ export default function Notifications() {
         .order('escalation_created_at', { ascending: false })
 
       if (data) {
-        setEscalations(data)
+        const hasMock = data.some(e => e.po_num === YASHODA_ESCALATION_MOCK.po_num && e.status === 'open')
+        const mergedEscalations = hasMock ? data : [YASHODA_ESCALATION_MOCK, ...data]
+        setEscalations(mergedEscalations)
         // mark all current as unread on first load
-        setUnreadIds(new Set(data.map(e => e.id)))
+        setUnreadIds(new Set(mergedEscalations.map(e => e.id)))
       }
       setLoading(false)
     }
