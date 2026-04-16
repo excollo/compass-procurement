@@ -37,7 +37,7 @@ const YASHODA_ESCALATION_MOCK = {
   vendor_code: '30005069',
   vendor_name: 'Yashoda Gas Service',
   vendor_phone: '9680597120',
-  delivery_site: 'Jaipur Plant',
+  delivery_site: '',
   delivery_date: '2026-04-14',
   document_date: '2026-04-07',
   escalation_reason: 'no_response',
@@ -62,23 +62,84 @@ const YASHODA_ESCALATION_MOCK = {
 };
 
 const hydrateMockEscalationFromDb = async () => {
-  const { data: poRow } = await supabase
-    .from('selected_open_po_line_items')
-    .select('po_num, vendor_name, vendor_code, vendor_phone, delivery_site, delivery_date, doc_date, document_date')
-    .eq('po_num', YASHODA_ESCALATION_MOCK.po_num)
-    .limit(1)
-    .maybeSingle();
+  const fetchRows = async (table, filters) => {
+    try {
+      let query = supabase.from(table).select('*').limit(200);
+      filters.forEach(({ column, value }) => {
+        query = query.eq(column, value);
+      });
+      const { data, error } = await query;
+      if (error) {
+        console.warn(`Failed to hydrate mock escalation from ${table}:`, error);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      console.warn(`Unexpected hydrate error from ${table}:`, err);
+      return [];
+    }
+  };
 
-  if (!poRow) return YASHODA_ESCALATION_MOCK;
+  const [selectedByPo, openPoByPo] = await Promise.all([
+    fetchRows('selected_open_po_line_items', [{ column: 'po_num', value: YASHODA_ESCALATION_MOCK.po_num }]),
+    fetchRows('open_po_detail', [{ column: 'po_num', value: YASHODA_ESCALATION_MOCK.po_num }])
+  ]);
+
+  let rows = [...selectedByPo, ...openPoByPo];
+
+  // Some environments may not have the mock PO in the selected/open tables yet.
+  // Fall back to vendor lookup so the visible detail fields still come from live DB rows.
+  if (rows.length === 0) {
+    const [selectedByVendor, openPoByVendor] = await Promise.all([
+      fetchRows('selected_open_po_line_items', [{ column: 'vendor_name', value: YASHODA_ESCALATION_MOCK.vendor_name }]),
+      fetchRows('open_po_detail', [{ column: 'vendor_name', value: YASHODA_ESCALATION_MOCK.vendor_name }])
+    ]);
+    rows = [...selectedByVendor, ...openPoByVendor];
+  }
+
+  if (rows.length === 0) {
+    return {
+      ...YASHODA_ESCALATION_MOCK,
+      delivery_site: 'Site not available'
+    };
+  }
+
+  const bestRow =
+    rows.find(row => row.delivery_site) ||
+    rows.find(row => row.unit_description) ||
+    rows[0];
+
+  const totalLines = rows.length;
+  const aggregated = rows.reduce((acc, row) => {
+    const poQty = Number(row.po_quantity) || 0;
+    const deliveredQty = Number(row.delivered_quantity) || 0;
+    const openQty = Number(row.open_quantity) || 0;
+
+    acc.poQuantity += poQty;
+    acc.deliveredQuantity += deliveredQty;
+    acc.pendingLines += openQty > 0 ? 1 : 0;
+    return acc;
+  }, {
+    poQuantity: 0,
+    deliveredQuantity: 0,
+    pendingLines: 0
+  });
+
+  const fulfillmentRate = aggregated.poQuantity > 0
+    ? Math.round((aggregated.deliveredQuantity / aggregated.poQuantity) * 100)
+    : YASHODA_ESCALATION_MOCK.fulfillment_rate;
 
   return {
     ...YASHODA_ESCALATION_MOCK,
-    vendor_name: poRow.vendor_name || YASHODA_ESCALATION_MOCK.vendor_name,
-    vendor_code: poRow.vendor_code || YASHODA_ESCALATION_MOCK.vendor_code,
-    vendor_phone: poRow.vendor_phone || YASHODA_ESCALATION_MOCK.vendor_phone,
-    delivery_site: poRow.delivery_site || YASHODA_ESCALATION_MOCK.delivery_site,
-    delivery_date: poRow.delivery_date || YASHODA_ESCALATION_MOCK.delivery_date,
-    document_date: poRow.document_date || poRow.doc_date || YASHODA_ESCALATION_MOCK.document_date
+    vendor_name: bestRow.vendor_name || YASHODA_ESCALATION_MOCK.vendor_name,
+    vendor_code: bestRow.vendor_code || YASHODA_ESCALATION_MOCK.vendor_code,
+    vendor_phone: bestRow.vendor_phone || YASHODA_ESCALATION_MOCK.vendor_phone,
+    delivery_site: bestRow.delivery_site || bestRow.unit_description || 'Site not available',
+    delivery_date: bestRow.delivery_date || YASHODA_ESCALATION_MOCK.delivery_date,
+    document_date: bestRow.document_date || bestRow.doc_date || bestRow.po_date || YASHODA_ESCALATION_MOCK.document_date,
+    fulfillment_rate: fulfillmentRate,
+    pending_lines: aggregated.pendingLines,
+    total_lines: totalLines
   };
 };
 
