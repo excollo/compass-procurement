@@ -1,6 +1,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useState, useEffect } from 'react';
+const MOCK_ESCALATION_BADGE_OFFSET = 1;
 
 const NavItem = ({ to, icon, label, badge }) => {
   const innerContent = (isActive) => (
@@ -67,7 +68,7 @@ const Sidebar = () => {
         .from('escalations')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'open');
-      setUnreadCount(count || 0);
+      setUnreadCount((count || 0) + MOCK_ESCALATION_BADGE_OFFSET);
     };
     fetchCount();
 
@@ -87,7 +88,7 @@ const Sidebar = () => {
         table: 'escalations',
         filter: 'status=eq.resolved'
       }, () => {
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setUnreadCount(prev => Math.max(MOCK_ESCALATION_BADGE_OFFSET, prev - 1));
       })
       .subscribe();
 
