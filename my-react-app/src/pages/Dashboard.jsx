@@ -221,6 +221,7 @@ const Dashboard = () => {
       if (error) throw error;
       
       // Group by vendor_phone to show unique vendor threads
+      // Collect ALL po_nums per vendor (not just the first)
       const vendors = {};
       (data || []).forEach(row => {
         const phone = row.vendor_phone || 'no-phone';
@@ -228,12 +229,19 @@ const Dashboard = () => {
           vendors[phone] = {
             vendor_name: row.vendor_name || 'Unknown Vendor',
             vendor_phone: phone,
-            po_num: row.po_num, // representative PO for linking
+            po_num: row.po_num, // representative PO for navigation link
             delivery_date: row.delivery_date,
-            po_count: 0
+            po_count: 0,
+            po_nums: []       // ← collect all PO numbers for display
           };
         }
         vendors[phone].po_count++;
+        vendors[phone].po_nums.push(row.po_num);
+        // Use the soonest delivery date as representative
+        if (row.delivery_date && (!vendors[phone].delivery_date || row.delivery_date < vendors[phone].delivery_date)) {
+          vendors[phone].delivery_date = row.delivery_date;
+          vendors[phone].po_num = row.po_num; // link to most urgent PO
+        }
       });
       
       setConvos(Object.values(vendors));
@@ -601,6 +609,27 @@ const Dashboard = () => {
                           <p className="text-[10px] font-medium truncate mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
                             {v.po_count} {v.po_count === 1 ? 'Order' : 'Orders'} active
                           </p>
+                          {/* PO Numbers — shown when vendor has multiple POs */}
+                          {v.po_nums && v.po_nums.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {v.po_nums.slice(0, 3).map(pn => (
+                                <span
+                                  key={pn}
+                                  className="text-[8px] font-bold font-mono px-1.5 py-0.5 rounded"
+                                  style={{
+                                    background: 'var(--color-surface-muted)',
+                                    color: 'var(--color-brand-primary)',
+                                    border: '1px solid var(--color-border-light)'
+                                  }}
+                                >
+                                  #{pn}
+                                </span>
+                              ))}
+                              {v.po_nums.length > 3 && (
+                                <span className="text-[8px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>+{v.po_nums.length - 3} more</span>
+                              )}
+                            </div>
+                          )}
                           {v.delivery_date && (
                             <p className={`text-[9px] font-bold mt-0.5 ${ETD_COLOR(v.delivery_date)}`}>
                               Next: {fmtDate(v.delivery_date)}
