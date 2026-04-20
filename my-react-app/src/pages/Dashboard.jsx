@@ -90,7 +90,6 @@ const YASHODA_ESCALATION_MOCK = {
   escalation_created_at: '2026-04-13T16:45:00Z',
   message_text: 'No response'
 };
-const MOCK_ESCALATION_BADGE_OFFSET = 1;
 const ETD_COLOR = (dateStr) => {
   if (!dateStr) return 'text-slate-400';
   const etd = new Date(dateStr);
@@ -336,7 +335,7 @@ const Dashboard = () => {
         .from('escalations')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'open');
-      setUnreadCount((count || 0) + MOCK_ESCALATION_BADGE_OFFSET);
+      setUnreadCount(count || 0);
     };
     fetchCount();
   }, [fetchKPIs, fetchConvos, fetchEscalations]);
