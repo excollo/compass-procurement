@@ -69,7 +69,6 @@ const YASHODA_ESCALATION_MOCK = {
   vendor_replied_at: null,
   resolution_note: ''
 };
-const MOCK_ESCALATION_BADGE_OFFSET = 1;
 
 const formatElapsed = (ms) => {
   const totalMinutes = Math.floor(ms / 60000);
@@ -181,7 +180,7 @@ const Escalations = () => {
         .from('escalations')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'open');
-      setUnreadCount((count || 0) + MOCK_ESCALATION_BADGE_OFFSET);
+      setUnreadCount(count || 0);
     };
     fetchCount();
 
@@ -215,7 +214,7 @@ const Escalations = () => {
         table: 'escalations',
         filter: 'status=eq.resolved'
       }, () => {
-        setUnreadCount(prev => Math.max(MOCK_ESCALATION_BADGE_OFFSET, prev - 1));
+        setUnreadCount(prev => Math.max(0, prev - 1));
       })
       .subscribe();
 
