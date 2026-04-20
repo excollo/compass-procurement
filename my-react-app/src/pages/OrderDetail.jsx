@@ -32,6 +32,54 @@ const OrderDetail = () => {
     const [headerStatus, setHeaderStatus] = useState('');
     const [headerDeliveryDate, setHeaderDeliveryDate] = useState('');
     const [savingHeader, setSavingHeader] = useState(false);
+    const [sendingFollowUp, setSendingFollowUp] = useState(false);
+    const [toast, setToast] = useState(null);
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+    };
+
+    useEffect(() => {
+        if (!toast) return;
+        const timer = setTimeout(() => setToast(null), 3200);
+        return () => clearTimeout(timer);
+    }, [toast]);
+
+    const bumpFollowUpInSelectedPO = async () => {
+        const { data: currentRows, error: readError } = await supabase
+            .from('selected_open_po_line_items')
+            .select('po_num, reminder_count, vendor_name, vendor_code, vendor_phone, status, thread_state')
+            .eq('po_num', poNum)
+            .limit(1);
+
+        if (readError) {
+            console.warn('Could not read selected_open_po_line_items for follow-up:', readError.message);
+        }
+
+        const current = currentRows?.[0] || null;
+        const nextReminderCount = (current?.reminder_count || 0) + 1;
+
+        const payload = {
+            po_num: String(poNum),
+            vendor_name: current?.vendor_name || header?.vendor_name || null,
+            vendor_code: current?.vendor_code || header?.vendor_code || null,
+            vendor_phone: current?.vendor_phone || null,
+            status: current?.status || headerStatus || null,
+            reminder_count: nextReminderCount,
+            last_intent: 'FOLLOW_UP',
+            communication_state: 'waiting_vendor',
+            thread_state: current?.thread_state || 'bot_active',
+            ai_paused: false
+        };
+
+        const { error: upsertError } = await supabase
+            .from('selected_open_po_line_items')
+            .upsert(payload, { onConflict: 'po_num' });
+
+        if (upsertError) {
+            console.warn('Could not update selected_open_po_line_items after follow-up:', upsertError.message);
+        }
+    };
 
     useEffect(() => {
         const fetchPODetail = async () => {
@@ -189,10 +237,10 @@ const OrderDetail = () => {
                 await sendBotUpdateMessage(message);
             }
 
-            alert('PO Header updated successfully across all items.');
+            showToast('PO header updated successfully across all items.', 'success');
         } catch (err) {
             console.error('Header update failed:', err);
-            alert('Failed to update PO header: ' + err.message);
+            showToast(`Failed to update PO header: ${err.message}`, 'error');
         } finally {
             setSavingHeader(false);
         }
@@ -266,7 +314,8 @@ const OrderDetail = () => {
         daysDiff = Math.ceil((etd - todayDate) / (1000 * 60 * 60 * 24));
     }
 
-    const sendBotUpdateMessage = async (messageText) => {
+    const sendBotUpdateMessage = async (messageText, options = {}) => {
+        const { forceSend = false } = options;
         const PILOT_POS = [
             '4100259330',
             '4100260294',
@@ -275,9 +324,9 @@ const OrderDetail = () => {
             '4100260654'
         ];
 
-        if (!PILOT_POS.includes(poNum)) {
+        if (!forceSend && !PILOT_POS.includes(poNum)) {
             console.log(`ℹ️ PO #${poNum} is not in Pilot list — skipping bot notification`);
-            return;
+            return { sent: false, reason: 'not_in_pilot' };
         }
 
         try {
@@ -285,24 +334,30 @@ const OrderDetail = () => {
 
             if (!vendorBackendUrl) {
                 console.warn('⚠️ VITE_VENDOR_BACKEND_URL not set — skipping bot notification');
-                return;
+                return { sent: false, reason: 'missing_backend_url' };
             }
 
-            // fetch vendor phone from selected_open_po_line_items
-            const { data: poRecord } = await supabase
+            // Resolve vendor context robustly (po_num can have multiple line rows).
+            let vendorPhone = '';
+            let supplierName = header?.vendor_name || '';
+            const { data: poRecords } = await supabase
                 .from('selected_open_po_line_items')
                 .select('vendor_phone, vendor_name')
                 .eq('po_num', poNum)
-                .single();
+                .limit(50);
 
-            const vendorPhone = poRecord?.vendor_phone || '';
-            const supplierName = poRecord?.vendor_name || header?.vendor_name || '';
+            if (poRecords?.length) {
+                const withPhone = poRecords.find((row) => row.vendor_phone);
+                vendorPhone = withPhone?.vendor_phone || '';
+                supplierName = withPhone?.vendor_name || poRecords[0]?.vendor_name || supplierName;
+            }
 
             const response = await fetch(`${vendorBackendUrl}/api/chat-message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     po_id: poNum,
+                    po_num: poNum,
                     sender_type: 'bot',
                     sender_label: 'Compass Bot',
                     message_text: messageText,
@@ -316,12 +371,53 @@ const OrderDetail = () => {
 
             if (!response.ok) {
                 console.error('❌ Bot notification failed:', response.status);
+                return { sent: false, reason: `http_${response.status}` };
             } else {
+                // Persist in chat_history so Conversations always reflects sent follow-ups.
+                const { error: chatInsertError } = await supabase
+                    .from('chat_history')
+                    .insert([{
+                        po_num: String(poNum),
+                        vendor_phone: vendorPhone || null,
+                        sender_type: 'bot',
+                        sender_label: 'Compass Bot',
+                        message_text: messageText,
+                        sent_at: new Date().toISOString(),
+                        intent: 'FOLLOW_UP',
+                        escalate: false
+                    }]);
+
+                if (chatInsertError) {
+                    console.warn('⚠️ Could not persist follow-up in chat_history:', chatInsertError.message);
+                }
+
+                await bumpFollowUpInSelectedPO();
                 console.log('✅ Bot notified vendor of PO update:', messageText.slice(0, 60));
+                return { sent: true };
             }
         } catch (err) {
             // never block the save — just log the error
             console.error('❌ sendBotUpdateMessage error:', err.message);
+            return { sent: false, reason: 'exception', error: err };
+        }
+    };
+
+    const handleManualFollowUp = async () => {
+        try {
+            setSendingFollowUp(true);
+            const message =
+                `Follow-up reminder — PO ${poNum} delivery is approaching. Please confirm status.`;
+
+            const result = await sendBotUpdateMessage(message, { forceSend: true });
+            if (!result?.sent) {
+                throw new Error('Could not send follow-up message.');
+            }
+            showToast('Follow-up message sent to vendor successfully.', 'success');
+        } catch (err) {
+            console.error('Manual follow-up failed:', err);
+            showToast('Failed to send follow-up message. Please try again.', 'error');
+        } finally {
+            setSendingFollowUp(false);
         }
     };
 
@@ -338,9 +434,16 @@ const OrderDetail = () => {
                     <div className="flex justify-between items-end">
                         <div className="flex items-center gap-6">
                             <h1 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">PO {poNum}</h1>
-                            
-                            <div className="flex items-center gap-3">
-                            </div>
+                            <button
+                                onClick={handleManualFollowUp}
+                                disabled={sendingFollowUp}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
+                            >
+                                <span className={`material-symbols-outlined text-[16px] ${sendingFollowUp ? 'animate-spin' : ''}`}>
+                                    {sendingFollowUp ? 'sync' : 'notifications_active'}
+                                </span>
+                                {sendingFollowUp ? 'Sending Follow Up...' : 'Send Follow Up'}
+                            </button>
                         </div>
                         <div className="text-right flex items-center gap-6">
                              <div>
@@ -483,10 +586,10 @@ const OrderDetail = () => {
 
                                                     await sendBotUpdateMessage(message);
 
-                                                    alert('Row updated successfully');
+                                                    showToast('Row updated successfully.', 'success');
                                                 } catch (err) {
                                                     console.error('Error updating row:', err);
-                                                    alert('Update failed: ' + err.message);
+                                                    showToast(`Update failed: ${err.message}`, 'error');
                                                 }
                                             };
  
@@ -739,6 +842,33 @@ const OrderDetail = () => {
                 }
                 .animate-scale-in { animation: scaleIn 0.35s cubic-bezier(0.16,1,0.3,1) both; }
             `}} />
+
+            {toast && (
+                <div className="fixed top-6 right-6 z-[120] animate-scale-in">
+                    <div
+                        className={`min-w-[320px] max-w-[420px] px-4 py-3 rounded-2xl border shadow-xl flex items-start gap-3 ${
+                            toast.type === 'error'
+                                ? 'bg-red-50 border-red-200'
+                                : 'bg-emerald-50 border-emerald-200'
+                        }`}
+                    >
+                        <span
+                            className={`material-symbols-outlined text-[18px] mt-0.5 ${
+                                toast.type === 'error' ? 'text-red-600' : 'text-emerald-600'
+                            }`}
+                        >
+                            {toast.type === 'error' ? 'error' : 'check_circle'}
+                        </span>
+                        <p
+                            className={`text-xs font-bold tracking-wide ${
+                                toast.type === 'error' ? 'text-red-800' : 'text-emerald-800'
+                            }`}
+                        >
+                            {toast.message}
+                        </p>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
