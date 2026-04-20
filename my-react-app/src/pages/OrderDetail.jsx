@@ -33,6 +33,7 @@ const OrderDetail = () => {
     const [headerDeliveryDate, setHeaderDeliveryDate] = useState('');
     const [savingHeader, setSavingHeader] = useState(false);
     const [sendingFollowUp, setSendingFollowUp] = useState(false);
+    const [openingConversation, setOpeningConversation] = useState(false);
     const [toast, setToast] = useState(null);
 
     const showToast = (message, type = 'success') => {
@@ -421,6 +422,53 @@ const OrderDetail = () => {
         }
     };
 
+    const handleViewConversation = async () => {
+        try {
+            setOpeningConversation(true);
+            const { count: poCount, error: poCountError } = await supabase
+                .from('chat_history')
+                .select('id', { count: 'exact', head: true })
+                .eq('po_num', String(poNum));
+
+            if (poCountError) throw poCountError;
+
+            if (poCount && poCount > 0) {
+                navigate(`/chats?po=${poNum}`);
+                return;
+            }
+
+            // Fallback: vendor-level history (some backends may store vendor rows without po_num).
+            const { data: selectedRows, error: selectedReadError } = await supabase
+                .from('selected_open_po_line_items')
+                .select('vendor_phone')
+                .eq('po_num', String(poNum))
+                .limit(1);
+
+            if (selectedReadError) throw selectedReadError;
+
+            const vendorPhone = selectedRows?.[0]?.vendor_phone;
+            if (vendorPhone) {
+                const { count: vendorCount, error: vendorCountError } = await supabase
+                    .from('chat_history')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('vendor_phone', vendorPhone);
+
+                if (vendorCountError) throw vendorCountError;
+                if (vendorCount && vendorCount > 0) {
+                    navigate(`/chats?po=${poNum}`);
+                    return;
+                }
+            }
+
+            showToast('No chat history for this vendor.', 'error');
+        } catch (err) {
+            console.error('Failed to open conversation:', err);
+            showToast('Unable to open conversation right now.', 'error');
+        } finally {
+            setOpeningConversation(false);
+        }
+    };
+
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
             <Sidebar />
@@ -434,6 +482,16 @@ const OrderDetail = () => {
                     <div className="flex justify-between items-end">
                         <div className="flex items-center gap-6">
                             <h1 className="text-4xl font-black text-slate-900 dark:text-white font-headline tracking-tighter uppercase leading-none">PO {poNum}</h1>
+                            <button
+                                onClick={handleViewConversation}
+                                disabled={openingConversation}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all"
+                            >
+                                <span className={`material-symbols-outlined text-[16px] ${openingConversation ? 'animate-spin' : ''}`}>
+                                    {openingConversation ? 'sync' : 'chat'}
+                                </span>
+                                {openingConversation ? 'Checking...' : 'View Conversation'}
+                            </button>
                             <button
                                 onClick={handleManualFollowUp}
                                 disabled={sendingFollowUp}
