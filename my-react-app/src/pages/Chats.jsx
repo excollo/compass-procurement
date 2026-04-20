@@ -180,11 +180,24 @@ const CompassOpeningMessage = ({ vendor }) => {
   );
 };
 
+const VENDOR_SENDER_TYPES = new Set(['vendor', 'supplier', 'customer', 'user', 'buyer']);
+const OPERATOR_SENDER_TYPES = new Set(['operator', 'admin', 'agent', 'spoc']);
+const BOT_SENDER_TYPES = new Set(['bot', 'assistant', 'ai', 'system']);
+
+const normalizeSenderType = (senderType) => {
+  const normalized = String(senderType || '').trim().toLowerCase();
+  if (VENDOR_SENDER_TYPES.has(normalized)) return 'vendor';
+  if (OPERATOR_SENDER_TYPES.has(normalized)) return 'operator';
+  if (BOT_SENDER_TYPES.has(normalized)) return 'bot';
+  return 'bot';
+};
+
 // Chat bubble component per sender_type
 const ChatBubble = ({ message }) => {
   const { sender_type, message_text, sent_at, escalation_required } = message;
+  const senderType = normalizeSenderType(sender_type);
 
-  if (sender_type === 'vendor') {
+  if (senderType === 'vendor') {
     // Left-aligned, blue bubble (incoming from vendor)
     return (
       <>
@@ -205,7 +218,7 @@ const ChatBubble = ({ message }) => {
     );
   }
 
-  if (sender_type === 'operator') {
+  if (senderType === 'operator') {
     // Right-aligned, white bubble with border (outgoing from operator)
     return (
       <>
@@ -265,6 +278,60 @@ const ChatSkeleton = () => (
 );
 
 const Chats = () => {
+  const VENDOR_STATE_HINTS = new Set([
+    'action_required',
+    'confirmed',
+    'resolved',
+    'human_controlled'
+  ]);
+
+  const persistVendorReplyFromSelectedRow = async (row) => {
+    const poNum = String(row?.po_num || '').trim();
+    const replyText = String(row?.reason || '').trim();
+    if (!poNum || !replyText) return;
+
+    // Avoid injecting system reasons/status strings as fake vendor replies.
+    if (replyText.length < 2) return;
+
+    const state = String(row?.communication_state || '').toLowerCase();
+    const lastIntent = String(row?.last_intent || '').toLowerCase();
+    const looksVendorDriven =
+      VENDOR_STATE_HINTS.has(state) ||
+      (lastIntent && !['follow_up', 'operator_message', 'po_update'].includes(lastIntent));
+    if (!looksVendorDriven) return;
+
+    const { data: existing, error: existingErr } = await supabase
+      .from('chat_history')
+      .select('id')
+      .eq('po_num', poNum)
+      .eq('sender_type', 'vendor')
+      .eq('message_text', replyText)
+      .limit(1);
+
+    if (existingErr) {
+      console.warn('Could not check existing vendor reply in chat_history:', existingErr.message);
+      return;
+    }
+    if (existing && existing.length > 0) return;
+
+    const { error: insertErr } = await supabase
+      .from('chat_history')
+      .insert([{
+        po_num: poNum,
+        vendor_phone: row?.vendor_phone || null,
+        sender_type: 'vendor',
+        sender_label: row?.vendor_name || 'Vendor',
+        message_text: replyText,
+        sent_at: new Date().toISOString(),
+        communication_state: row?.communication_state || null,
+        intent: row?.last_intent || null
+      }]);
+
+    if (insertErr) {
+      console.warn('Could not persist vendor reply from selected_open_po_line_items:', insertErr.message);
+    }
+  };
+
   // Validation for backend URL
   useEffect(() => {
     const backendUrl = import.meta.env.VITE_VENDOR_BACKEND_URL;
@@ -420,20 +487,31 @@ const Chats = () => {
         });
         setVendorData(vendorList);
 
-        // Fetch chat messages for all vendors
-        const vendorNames = vendorList.map(v => v.vendor_name);
+        // Bridge vendor replies into chat_history when backend stores them in selected table.
+        await Promise.all((normalizedRows || []).map(persistVendorReplyFromSelectedRow));
 
-        const { data: allMessages } = await supabase
+        // Fetch chat messages for tracked vendors and POs.
+        const vendorPhones = [...new Set(vendorList.map(v => v.vendor_phone).filter(Boolean))];
+        const trackedPoNums = [...new Set(
+          vendorList.flatMap(v => (v.pos || []).map(p => String(p.po_num))).filter(Boolean)
+        )];
+        let msgQuery = supabase
           .from('chat_history')
-          .select('vendor_phone, sender_type, sent_at, communication_state')
-          .in('vendor_phone', vendorNames.map(name => 
-            vendorList.find(v => v.vendor_name === name)?.vendor_phone
-          ).filter(Boolean))
+          .select('vendor_phone, po_num, po_id, sender_type, sent_at, communication_state')
           .order('sent_at', { ascending: true });
+        if (trackedPoNums.length > 0) {
+          msgQuery = msgQuery.in('po_num', trackedPoNums);
+        } else if (vendorPhones.length > 0) {
+          msgQuery = msgQuery.in('vendor_phone', vendorPhones);
+        }
+        const { data: allMessages } = await msgQuery;
 
         const grouped = {};
         allMessages?.forEach(msg => {
-          const vendor = vendorList.find(v => v.vendor_phone === msg.vendor_phone);
+          const vendor = vendorList.find(v =>
+            (msg.vendor_phone && v.vendor_phone === msg.vendor_phone) ||
+            ((msg.po_num || msg.po_id) && (v.pos || []).some(p => String(p.po_num) === String(msg.po_num || msg.po_id)))
+          );
           const vendorName = vendor?.vendor_name || 'Unknown';
           if (!grouped[vendorName]) grouped[vendorName] = [];
           grouped[vendorName].push(msg);
@@ -445,7 +523,7 @@ const Chats = () => {
         const requestedPo = searchParams.get('po');
         let initialVendor = null;
         if (requestedPo) {
-          initialVendor = vendorList.find(v => v.pos.some(p => p.po_num === requestedPo));
+          initialVendor = vendorList.find(v => v.pos.some(p => String(p.po_num) === String(requestedPo)));
         }
         setSelectedVendor(initialVendor || (vendorList.length > 0 ? vendorList[0] : null));
       }
@@ -493,7 +571,10 @@ const Chats = () => {
         (payload) => {
           const msg = payload.new;
           setMessagesByVendor(prev => {
-            const vendor = vendorData.find(v => v.vendor_phone === msg.vendor_phone);
+            const vendor = vendorData.find(v =>
+              (msg.vendor_phone && v.vendor_phone === msg.vendor_phone) ||
+              ((msg.po_num || msg.po_id) && (v.pos || []).some(p => String(p.po_num) === String(msg.po_num || msg.po_id)))
+            );
             const vendorName = vendor?.vendor_name || 'Unknown';
             const current = prev[vendorName] || [];
             return {
@@ -505,9 +586,22 @@ const Chats = () => {
       )
       .subscribe();
 
+    // Listen to selected_open_po_line_items updates and sync vendor replies into chat_history.
+    const selectedPoChannel = supabase
+      .channel('selected-po-vendor-replies')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'selected_open_po_line_items' },
+        async (payload) => {
+          await persistVendorReplyFromSelectedRow(payload.new);
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(globalChannel);
       supabase.removeChannel(notificationChannel);
+      supabase.removeChannel(selectedPoChannel);
     };
   }, [searchParams]);
 
@@ -627,15 +721,30 @@ const Chats = () => {
     setNewMessage(''); 
 
     try {
+      const mainPo = selectedVendor.pos?.[0]?.po_num;
+      if (!mainPo) throw new Error('PO context missing for this conversation.');
+
+      let resolvedVendorPhone = selectedVendor.vendor_phone || '';
+      if (!resolvedVendorPhone) {
+        const { data: poRows } = await supabase
+          .from('selected_open_po_line_items')
+          .select('vendor_phone')
+          .eq('po_num', mainPo)
+          .limit(20);
+        const withPhone = (poRows || []).find(r => r.vendor_phone);
+        resolvedVendorPhone = withPhone?.vendor_phone || '';
+      }
+
       const res = await fetch(`${import.meta.env.VITE_VENDOR_BACKEND_URL}/api/chat-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          po_id: selectedVendor.pos[0].po_num, // Targeted at the main PO for back-compat
+          po_id: mainPo, // Targeted at the main PO for back-compat
+          po_num: mainPo,
           sender_type: 'operator',
           sender_label: 'Compass Procurement Team',
           message_text: messageText,
-          vendor_phone: selectedVendor.vendor_phone,
+          vendor_phone: resolvedVendorPhone,
           supplier_name: selectedVendor.vendor_name,
           intent: null,
           escalate: false
@@ -643,6 +752,54 @@ const Chats = () => {
       });
 
       if (!res.ok) throw new Error(`Send failed: ${res.status}`);
+
+      // Persist operator messages in chat_history so they always appear in Conversations.
+      const { error: chatInsertError } = await supabase
+        .from('chat_history')
+        .insert([{
+          po_num: String(mainPo),
+          vendor_phone: resolvedVendorPhone || null,
+          sender_type: 'operator',
+          sender_label: 'Compass Procurement Team',
+          message_text: messageText,
+          sent_at: new Date().toISOString(),
+          intent: null,
+          escalate: false
+        }]);
+
+      if (chatInsertError) {
+        console.warn('Could not persist operator message in chat_history:', chatInsertError.message);
+      }
+
+      const { data: selectedRows, error: selectedReadError } = await supabase
+        .from('selected_open_po_line_items')
+        .select('po_num, reminder_count, thread_state, vendor_name, vendor_code, vendor_phone, status')
+        .eq('po_num', mainPo)
+        .limit(1);
+
+      if (selectedReadError) {
+        console.warn('Could not read selected_open_po_line_items after operator send:', selectedReadError.message);
+      }
+
+      const selectedRow = selectedRows?.[0] || null;
+      const { error: selectedUpdateError } = await supabase
+        .from('selected_open_po_line_items')
+        .upsert({
+          po_num: String(mainPo),
+          vendor_name: selectedRow?.vendor_name || selectedVendor.vendor_name || null,
+          vendor_code: selectedRow?.vendor_code || selectedVendor.vendor_code || null,
+          vendor_phone: selectedRow?.vendor_phone || resolvedVendorPhone || null,
+          status: selectedRow?.status || null,
+          reminder_count: selectedRow?.reminder_count || 0,
+          last_intent: 'OPERATOR_MESSAGE',
+          communication_state: 'action_required',
+          thread_state: selectedRow?.thread_state || 'human_controlled',
+          ai_paused: true
+        }, { onConflict: 'po_num' });
+
+      if (selectedUpdateError) {
+        console.warn('Could not update selected_open_po_line_items after operator send:', selectedUpdateError.message);
+      }
     } catch (err) {
       console.error('Error sending message:', err);
       setNewMessage(messageText);
@@ -981,7 +1138,9 @@ const Chats = () => {
 
                   {/* ── Chat Messages with Date Dividers ── */}
                   {(() => {
-                    const messages = selectedVendor.messages || chatMessages;
+                    const messages = chatMessages.length > 0
+                      ? chatMessages
+                      : (selectedVendor.messages || []);
                     let lastDate = null;
                     
                     return messages.map((msg) => {
