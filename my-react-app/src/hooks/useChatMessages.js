@@ -11,7 +11,7 @@ export default function useChatMessages(vendorPhone, poNums = []) {
   const channelRef = useRef(null);
 
   useEffect(() => {
-    const uniquePoNums = [...new Set((poNums || []).filter(Boolean))];
+    const uniquePoNums = [...new Set((poNums || []).filter(Boolean).map((po) => String(po)))];
     const hasPhone = Boolean(vendorPhone);
     const hasPos = uniquePoNums.length > 0;
 
@@ -34,22 +34,65 @@ export default function useChatMessages(vendorPhone, poNums = []) {
       channelRef.current = null;
     }
 
-    // Fetch existing messages
-    const fetchMessages = async () => {
-      let query = supabase
-        .from('chat_history')
-        .select('*')
-        .order('sent_at', { ascending: true });
-
-      if (hasPhone && hasPos) {
-        query = query.or(`vendor_phone.eq.${vendorPhone},po_num.in.(${uniquePoNums.join(',')})`);
-      } else if (hasPhone) {
-        query = query.eq('vendor_phone', vendorPhone);
-      } else {
-        query = query.in('po_num', uniquePoNums);
+    const normalizeChatRow = (row) => {
+      const messageTextRaw =
+        row?.message_text ??
+        row?.message ??
+        row?.text ??
+        row?.body ??
+        row?.content ??
+        row?.vendor_message ??
+        row?.reply_text ??
+        '';
+      const normalizedPo =
+        row?.po_num ??
+        row?.po_id ??
+        row?.po_number ??
+        row?.order_id ??
+        '';
+      const normalizedPhone =
+        row?.vendor_phone ??
+        row?.phone ??
+        row?.sender_phone ??
+        row?.from_phone ??
+        null;
+      const direction = String(row?.direction || '').toLowerCase();
+      const senderLabel = String(row?.sender_label || '').toLowerCase();
+      let normalizedSenderType = row?.sender_type;
+      if (!normalizedSenderType) {
+        if (direction === 'inbound') normalizedSenderType = 'vendor';
+        else if (direction === 'outbound' && senderLabel.includes('procurement')) normalizedSenderType = 'operator';
+        else if (direction === 'outbound') normalizedSenderType = 'bot';
       }
 
-      const { data, error: fetchError } = await query;
+      return {
+        ...row,
+        po_num: normalizedPo ? String(normalizedPo) : '',
+        vendor_phone: normalizedPhone,
+        sender_type: normalizedSenderType || 'bot',
+        message_text: String(messageTextRaw || ''),
+        sent_at: row?.sent_at || row?.created_at || row?.inserted_at || new Date().toISOString(),
+      };
+    };
+
+    const matchesTrackedThread = (rawRow) => {
+      const row = normalizeChatRow(rawRow);
+      const rowPhone = String(row?.vendor_phone || '');
+      const rowPo = String(row?.po_num || '');
+      const phoneMatch = hasPhone && rowPhone && rowPhone === String(vendorPhone || '');
+      const poMatch = hasPos && rowPo && uniquePoNums.includes(rowPo);
+      return phoneMatch || poMatch;
+    };
+
+    // Fetch existing messages
+    const fetchMessages = async () => {
+      // Read broadly, then filter client-side to handle schema/field inconsistencies
+      // (e.g. vendor rows missing vendor_phone but containing po_num/po_id).
+      const { data, error: fetchError } = await supabase
+        .from('chat_history')
+        .select('*')
+        .order('sent_at', { ascending: true })
+        .limit(2000);
 
       if (cancelled) return;
 
@@ -63,7 +106,8 @@ export default function useChatMessages(vendorPhone, poNums = []) {
       // De-dup rows when both phone and po_num clauses match.
       const deduped = [];
       const seen = new Set();
-      (data || []).forEach((row) => {
+      (data || []).filter(matchesTrackedThread).forEach((rawRow) => {
+        const row = normalizeChatRow(rawRow);
         const key = row.id || `${row.sent_at || ''}-${row.sender_type || ''}-${row.message_text || ''}-${row.po_num || ''}`;
         if (!seen.has(key)) {
           seen.add(key);
@@ -86,19 +130,16 @@ export default function useChatMessages(vendorPhone, poNums = []) {
           event: 'INSERT',
           schema: 'public',
           table: 'chat_history',
-          filter: hasPhone ? `vendor_phone=eq.${vendorPhone}` : undefined,
         },
         (payload) => {
-          const row = payload.new;
-          const phoneMatch = hasPhone && row.vendor_phone === vendorPhone;
-          const poMatch = hasPos && uniquePoNums.includes(row.po_num);
-          if (!phoneMatch && !poMatch) return;
+          const normalizedRow = normalizeChatRow(payload.new);
+          if (!matchesTrackedThread(normalizedRow)) return;
 
           setMessages((prev) => {
-            const key = row.id || `${row.sent_at || ''}-${row.sender_type || ''}-${row.message_text || ''}-${row.po_num || ''}`;
-            const exists = prev.some((m) => (m.id ? m.id === row.id : `${m.sent_at || ''}-${m.sender_type || ''}-${m.message_text || ''}-${m.po_num || ''}` === key));
+            const key = normalizedRow.id || `${normalizedRow.sent_at || ''}-${normalizedRow.sender_type || ''}-${normalizedRow.message_text || ''}-${normalizedRow.po_num || ''}`;
+            const exists = prev.some((m) => (m.id ? m.id === normalizedRow.id : `${m.sent_at || ''}-${m.sender_type || ''}-${m.message_text || ''}-${m.po_num || ''}` === key));
             if (exists) return prev;
-            return [...prev, row];
+            return [...prev, normalizedRow];
           });
         }
       )
