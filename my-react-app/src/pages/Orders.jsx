@@ -56,10 +56,24 @@ const COMM_STATES = [
   { value: 'escalated', label: 'Escalated', bg: 'bg-[#FFEDD5]', text: 'text-[#C2410C]' },
   { value: 'human_controlled', label: 'Human Controlled', bg: 'bg-[#FEE2E2]', text: 'text-[#B91C1C]' },
   { value: 'resolved', label: 'Resolved', bg: 'bg-[#CCFBF1]', text: 'text-[#0F766E]' },
-  { value: 'unresponsive', label: 'Unresponsive', bg: 'bg-[#FCE7F3]', text: 'text-[#9D174D]' }
+  { value: 'unresponsive', label: 'Unresponsive', bg: 'bg-[#FCE7F3]', text: 'text-[#9D174D]' },
+  { value: 'awaiting', label: 'Awaiting', bg: 'bg-[#EEF2FF]', text: 'text-[#4338CA]' },
+  { value: 'exception_detected', label: 'Exception Detected', bg: 'bg-[#FFF7ED]', text: 'text-[#C2410C]' },
+  { value: 'supplier_confirmed', label: 'Supplier Confirmed', bg: 'bg-[#ECFDF5]', text: 'text-[#047857]' },
+  { value: 'bot_active', label: 'Bot Active', bg: 'bg-[#F8FAFC]', text: 'text-[#475569]' }
 ];
 
-const getCommState = (val) => COMM_STATES.find(s => s.value === (val || '').toLowerCase()) || COMM_STATES[0];
+const getCommState = (val) => {
+  const normalized = (val || '').toLowerCase();
+  return COMM_STATES.find(s => s.value === normalized) || null;
+};
+
+const prettifyCommState = (value) =>
+  String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
 
 const Orders = () => {
   const location = useLocation();
@@ -142,31 +156,42 @@ const Orders = () => {
         }
       }
 
-      const RANDOM_STATES = ['pending','contacted','confirmed','at_risk','escalated','human_controlled','resolved','unresponsive'];
-
       const uniquePOs = [];
       const seenPOs = new Set();
       for (const item of allData) {
         if (!seenPOs.has(item.po_num)) {
           seenPOs.add(item.po_num);
-          // Seed random by po_num so state is stable per row
-          if (!item.communication_state) {
-            const seed = String(item.po_num).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-            item.communication_state = RANDOM_STATES[seed % RANDOM_STATES.length];
-          }
           uniquePOs.push(item);
         }
       }
 
-      setOrders(uniquePOs);
+      // Pull communication_state from selected_open_po_line_items only.
+      const poNums = uniquePOs.map(o => o.po_num).filter(Boolean);
+      const { data: selectedRows } = await supabase
+        .from('selected_open_po_line_items')
+        .select('po_num, communication_state')
+        .in('po_num', poNums);
+
+      const commStateByPo = {};
+      (selectedRows || []).forEach((row) => {
+        if (!row?.po_num) return;
+        commStateByPo[String(row.po_num)] = row.communication_state || null;
+      });
+
+      const normalizedOrders = uniquePOs.map((po) => ({
+        ...po,
+        communication_state: commStateByPo[String(po.po_num)] || null
+      }));
+
+      setOrders(normalizedOrders);
 
       // Fetch chat messages for all POs
-      const poNums = uniquePOs.map(o => o.po_num);
+      const trackedPoNums = normalizedOrders.map(o => o.po_num);
 
       const { data: allMessages } = await supabase
         .from('chat_history')
         .select('po_num, sender_type, sent_at')
-        .in('po_num', poNums);
+        .in('po_num', trackedPoNums);
 
       const grouped = {};
       allMessages?.forEach(msg => {
@@ -302,7 +327,7 @@ const Orders = () => {
       matchesDate = matchesDate && (new Date(po.po_date) <= new Date(filterDateTo));
     }
 
-    const commStateVal = (po.communication_state || 'pending').toLowerCase();
+    const commStateVal = (po.communication_state || '').toLowerCase();
     const matchesCommState = filterCommStates.length === 0 || filterCommStates.includes(commStateVal);
 
     return matchesSearch && matchesVendor && matchesDate && matchesCommState;
@@ -556,6 +581,7 @@ const Orders = () => {
                       else if (statusStr.toLowerCase() === 'cancelled') statusBadge = "bg-red-50 text-red-600 border-red-100";
                       
                       const cState = getCommState(po.communication_state);
+                      const rawCommState = (po.communication_state || '').trim();
 
                       return (
                         <tr 
@@ -621,9 +647,13 @@ const Orders = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center" onClick={() => navigate('/orders/' + po.po_num)}>
-                              <span className={`px-2.5 py-1 rounded-[6px] text-[11px] font-medium inline-flex items-center justify-center whitespace-nowrap ${cState.bg} ${cState.text}`}>
-                                  {cState.label}
-                              </span>
+                              {rawCommState ? (
+                                <span className={`min-w-[124px] px-3 py-1.5 rounded-[10px] text-[11px] font-semibold inline-flex items-center justify-center whitespace-nowrap border ${cState ? `${cState.bg} ${cState.text} border-transparent` : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                  {cState ? cState.label : prettifyCommState(rawCommState)}
+                                </span>
+                              ) : (
+                                <span className="min-w-[124px] px-3 py-1.5 rounded-[10px] text-[11px] font-semibold inline-flex items-center justify-center bg-slate-50 text-slate-400 border border-slate-200">-</span>
+                              )}
                           </td>
                           {(() => {
                             const sla = computeResponseSLA(messagesByPO[po.po_num] || [], 0.5)
