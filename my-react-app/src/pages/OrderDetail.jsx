@@ -161,7 +161,8 @@ const OrderDetail = () => {
         setSummary(null);
         try {
             const agentUrl = import.meta.env.VITE_AGENT_URL || 'http://localhost:8000';
-            const res = await fetch(`${agentUrl}/api/summary/${poNum}`, {
+            const cleanAgentUrl = agentUrl.replace(/\/+$/, '');
+            const res = await fetch(`${cleanAgentUrl}/api/summary/${poNum}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -353,7 +354,8 @@ const OrderDetail = () => {
                 supplierName = withPhone?.vendor_name || poRecords[0]?.vendor_name || supplierName;
             }
 
-            const response = await fetch(`${vendorBackendUrl}/api/chat-message`, {
+            const cleanBackendUrl = vendorBackendUrl.replace(/\/+$/, '');
+            const response = await fetch(`${cleanBackendUrl}/api/chat-message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -365,7 +367,7 @@ const OrderDetail = () => {
                     vendor_phone: vendorPhone,
                     supplier_name: supplierName,
                     intent: 'PO_UPDATE',
-                    escalate: false,
+                    escalation_required: false,
                     admin_message: ''
                 })
             });
@@ -385,7 +387,7 @@ const OrderDetail = () => {
                         message_text: messageText,
                         sent_at: new Date().toISOString(),
                         intent: 'FOLLOW_UP',
-                        escalate: false
+                        escalation_required: false
                     }]);
 
                 if (chatInsertError) {
